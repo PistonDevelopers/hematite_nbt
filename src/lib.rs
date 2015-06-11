@@ -12,7 +12,10 @@ pub use blob::NbtBlob;
 pub use error::{Error, Result};
 pub use value::NbtValue;
 
+pub mod serialize;
+
 mod blob;
 mod error;
 mod value;
+
 #[cfg(test)] mod tests;
