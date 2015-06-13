@@ -5,17 +5,17 @@ use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
 use error::NbtError;
 
 pub trait NbtFmt {
-    fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
        where W: io::Write;
 
     #[inline]
-    fn write_nbt_fmt_with_name<W, S>(&self, dst: &mut W, name: S) -> Result<(), NbtError>
+    fn to_nbt<W, S>(&self, dst: &mut W, name: S) -> Result<(), NbtError>
        where W: io::Write,
-             S: AsRef<str> {
-
+             S: AsRef<str>
+    {
         try!(dst.write_u8(Self::tag()));
         try!(write_bare_string(dst, name.as_ref()));
-        self.write_nbt_fmt(dst)
+        self.to_bare_nbt(dst)
     }
     
     #[inline] fn tag() -> u8 { 0x0a }
@@ -32,13 +32,17 @@ pub fn to_writer<W, T>(dst: &mut W, obj: T) -> Result<(), NbtError>
     where W: io::Write,
           T: NbtFmt
 {
-    obj.write_nbt_fmt_with_name(dst, "")
+    match T::is_bare() {
+        // Refuse to blindly serialize types not wrapped in an NBT Compound.
+        true  => { return Err(NbtError::NoRootCompound); },
+        false => obj.to_nbt(dst, ""),
+    }
 }
 
 macro_rules! nbtfmt_value {
   ($T:ty, $method:ident, $tag:expr, $bare:expr) => (
     impl NbtFmt for $T {
-      fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+      fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
            where W: io::Write {
             $method(dst, *self)
       }
@@ -51,7 +55,7 @@ macro_rules! nbtfmt_value {
 macro_rules! nbtfmt_ptr {
   ($T:ty, $method:ident, $tag:expr, $bare:expr) => (
     impl NbtFmt for $T {
-      fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+      fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
            where W: io::Write {
             $method(dst, self)
       }
@@ -64,7 +68,7 @@ macro_rules! nbtfmt_ptr {
 macro_rules! nbtfmt_slice {
   ($T:ty, $method:ident, $tag:expr, $bare:expr) => (
     impl NbtFmt for $T {
-      fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+      fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
            where W: io::Write {
             $method(dst, &self[..])
       }
@@ -88,7 +92,7 @@ nbtfmt_ptr!([i32], write_bare_int_array, 0x0b, true);
 nbtfmt_slice!(Vec<i32>, write_bare_int_array, 0x0b, true);
 
 // impl<T> NbtFmt for [T] where T: NbtFmt {
-//  fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+//  fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
 //        where W: io::Write {
         
 //          write_bare_list(dst, self.iter())
@@ -98,7 +102,7 @@ nbtfmt_slice!(Vec<i32>, write_bare_int_array, 0x0b, true);
 // }
 
 // impl<T> NbtFmt for Vec<T> where T: NbtFmt {
-//  fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+//  fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
 //        where W: io::Write {
         
 //          write_bare_list(dst, self.iter())
@@ -191,7 +195,8 @@ fn write_bare_list<'a, W, I, T>(dst: &mut W, values: I) -> Result<(), NbtError>
     try!(dst.write_i32::<BigEndian>(values.len() as i32));
 
     for ref value in values {
-       try!(value.write_nbt_fmt(dst));
+        // Note the use of bare values.
+        try!(value.to_bare_nbt(dst));
     }
 
     Ok(())
@@ -205,11 +210,11 @@ fn write_bare_compound<'a, W, I, T, S>(dst: &mut W, values: I) -> Result<(), Nbt
          T: 'a + NbtFmt {
 
     for (key, ref value) in values {
-        try!(value.write_nbt_fmt_with_name(dst, key.as_ref()));
+        try!(value.to_nbt(dst, key.as_ref()));
     }
     
     // Write the marker for the end of the Compound.
-    dst.write_u8(0x00).map_err(From::from)
+    close_nbt(dst)
 }
 
 #[test]
@@ -223,16 +228,16 @@ fn nbt_test_struct_serialize() {
   }
 
   impl NbtFmt for TestStruct {
-    fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
            where W: io::Write {
 
-            self.name.write_nbt_fmt_with_name(dst, "name");
-            self.health.write_nbt_fmt_with_name(dst, "health");
-            self.food.write_nbt_fmt_with_name(dst, "food");
-            self.emeralds.write_nbt_fmt_with_name(dst, "emeralds");
-            self.timestamp.write_nbt_fmt_with_name(dst, "timestamp");
+            try!(self.name.to_nbt(dst, "name"));
+            try!(self.health.to_nbt(dst, "health"));
+            try!(self.food.to_nbt(dst, "food"));
+            try!(self.emeralds.to_nbt(dst, "emeralds"));
+            try!(self.timestamp.to_nbt(dst, "timestamp"));
 
-            dst.write_u8(0x00).map_err(From::from)
+            close_nbt(dst)
         }
   }
 
@@ -242,7 +247,7 @@ fn nbt_test_struct_serialize() {
   };
 
   let mut test_encoded = Vec::new();
-  test.write_nbt_fmt_with_name(&mut test_encoded, "");
+  to_writer(&mut dst, test);
 
   let bytes = [
         0x0a,
