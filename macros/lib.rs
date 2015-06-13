@@ -28,11 +28,11 @@
 //! 
 //! ```ignore
 //! impl NbtFmt for MyMob {
-//! 	fn write_nbt_fmt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+//! 	fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
 //! 	   where W: std::io::Write
 //! 	{
-//! 		try!(self.name.write_nbt_fmt_with_name(dst, "name"));
-//!         try!(self.health.write_nbt_fmt_with_name(dst, "health"));
+//! 		try!(self.name.to_nbt(dst, "name"));
+//!         try!(self.health.to_nbt(dst, "health"));
 //! 
 //!         close_nbt(dst)
 //! 	}
@@ -97,7 +97,7 @@ pub fn expand_derive_nbtfmt(cx: &mut ExtCtxt, span: Span, meta_item: &MetaItem,
         generics: LifetimeBounds::empty(),
         methods: vec!(
             MethodDef {
-                name: "write_nbt_fmt",
+                name: "to_bare_nbt",
                 generics: LifetimeBounds {
                     lifetimes: Vec::new(),
                     // This adds a <__W: std::io::Writer> generic to the method.
@@ -131,7 +131,7 @@ pub fn expand_derive_nbtfmt(cx: &mut ExtCtxt, span: Span, meta_item: &MetaItem,
 }
 
 fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Expr> {
-    // Retrieve the argument passed to the write_nbt_fmt function, i.e. the
+    // Retrieve the argument passed to the to_bare_nbt function, i.e. the
     // `dst: &mut __W` bit. Since the method is already defined, there's no
     // reason for this to fail, so we call `cx.span_bug` indicating a compiler
     // error.
@@ -143,7 +143,7 @@ fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Exp
     };
     
     let call_nbt_fmt = |span, thing_expr, name| {
-        let nbt_fmt_path = pathexpr!(cx, span, nbt::serialize::NbtFmt::write_nbt_fmt_with_name);
+        let nbt_fmt_path = pathexpr!(cx, span, nbt::serialize::NbtFmt::to_nbt);
         let ref_thing = cx.expr_addr_of(span, thing_expr);
         
         // Create a string literal expression for the field's identifier.
@@ -171,7 +171,7 @@ fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Exp
                             "`NbtFmt` has no meaning for unit structs.");
                 cx.expr_fail(trait_span, InternedString::new(""))
             } else if fields[0].name.is_none() {
-            	// FIXME: Handle tuple structs using write_nbt_fmt_with_name
+            	// FIXME: Handle tuple structs using to_nbt
             	// with name = "".
                 cx.span_err(trait_span,
                             "`NbtFmt` cannot yet be derived for tuple structs.");

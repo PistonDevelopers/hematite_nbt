@@ -4,7 +4,7 @@
 extern crate nbt;
 extern crate test;
 
-use nbt::serialize::NbtFmt;
+use nbt::serialize;
 
 #[derive(NbtFmt)]
 struct TestStruct {
@@ -22,8 +22,8 @@ fn nbt_test_struct_serialize() {
     health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774
   };
 
-  let mut test_encoded = Vec::new();
-  test.write_nbt_fmt_with_name(&mut test_encoded, "").unwrap();
+  let mut dst = Vec::new();
+  serialize::to_writer(&mut dst, test).unwrap();
 
   let bytes = [
         0x0a,
@@ -52,5 +52,5 @@ fn nbt_test_struct_serialize() {
         0x00
     ];
 
-    assert_eq!(&bytes[..], &test_encoded[..]);
+    assert_eq!(&bytes[..], &dst[..]);
 }
