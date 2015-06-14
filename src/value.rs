@@ -4,7 +4,7 @@ use std::io;
 
 use byteorder::{ByteOrder, BigEndian, WriteBytesExt, ReadBytesExt};
 
-use error::NbtError;
+use error::Error;
 
 /// A value which can be represented in the Named Binary Tag (NBT) file format.
 #[derive(Clone, Debug, PartialEq)]
@@ -85,7 +85,7 @@ impl NbtValue {
 
     /// Writes the header (that is, the value's type ID and optionally a title)
     /// of this `NbtValue` to an `io::Write` destination.
-    pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<(), NbtError> {
+    pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<(), Error> {
         try!(dst.write_u8(self.id()));
         try!(dst.write_u16::<BigEndian>(title.len() as u16));
         try!(dst.write_all(title.as_bytes()));
@@ -93,7 +93,7 @@ impl NbtValue {
     }
 
     /// Writes the payload of this `NbtValue` to an `io::Write` destination.
-    pub fn write(&self, mut dst: &mut io::Write) -> Result<(), NbtError> {
+    pub fn write(&self, mut dst: &mut io::Write) -> Result<(), Error> {
         match *self {
             NbtValue::Byte(val)   => try!(dst.write_i8(val)),
             NbtValue::Short(val)  => try!(dst.write_i16::<BigEndian>(val)),
@@ -125,7 +125,7 @@ impl NbtValue {
                     for nbt in vals {
                         // Ensure that all of the tags are the same type.
                         if nbt.id() != first_id {
-                            return Err(NbtError::HeterogeneousList);
+                            return Err(Error::HeterogeneousList);
                         }
                         try!(nbt.write(dst));
                     }
@@ -152,7 +152,7 @@ impl NbtValue {
 
     /// Reads any valid `NbtValue` header (that is, a type ID and a title of
     /// arbitrary UTF-8 bytes) from an `io::Read` source.
-    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String), NbtError> {
+    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String), Error> {
         let id = try!(src.read_u8());
         if id == 0x00 { return Ok((0x00, "".to_string())); }
         // Extract the name.
@@ -167,7 +167,7 @@ impl NbtValue {
 
     /// Reads the payload of an `NbtValue` with a given type ID from an
     /// `io::Read` source.
-    pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<NbtValue, NbtError> {
+    pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<NbtValue, Error> {
         match id {
             0x01 => Ok(NbtValue::Byte(try!(src.read_i8()))),
             0x02 => Ok(NbtValue::Short(try!(src.read_i16::<BigEndian>()))),
@@ -214,7 +214,7 @@ impl NbtValue {
                 }
                 Ok(NbtValue::IntArray(buf))
             },
-            e => Err(NbtError::InvalidTypeId(e))
+            e => Err(Error::InvalidTypeId(e))
         }
     }
 }
@@ -306,12 +306,12 @@ impl<'a> From<&'a [i32]> for NbtValue {
 /// Returns a `Vec<u8>` containing the next `len` bytes in the reader.
 ///
 /// Adapted from `byteorder::read_full`.
-fn read_utf8(mut src: &mut io::Read, len: usize) -> Result<String, NbtError> {
+fn read_utf8(mut src: &mut io::Read, len: usize) -> Result<String, Error> {
     let mut bytes = vec![0; len];
     let mut n_read = 0usize;
     while n_read < bytes.len() {
         match try!(src.read(&mut bytes[n_read..])) {
-            0 => return Err(NbtError::IncompleteNbtValue),
+            0 => return Err(Error::IncompleteNbtValue),
             n => n_read += n
         }
     }

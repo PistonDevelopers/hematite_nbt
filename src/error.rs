@@ -7,10 +7,10 @@ use byteorder;
 /// Errors that may be encountered when constructing, parsing, or encoding
 /// `NbtValue` and `NbtBlob` objects.
 ///
-/// `NbtError`s can be seamlessly converted to more general `io::Error` objects
+/// `Error`s can be seamlessly converted to more general `io::Error` objects
 /// using the `FromError` trait.
 #[derive(Debug)]
-pub enum NbtError {
+pub enum Error {
     /// Wraps errors emitted by methods during I/O operations.
     IoError(io::Error),
     /// An error for when an unknown type ID is encountered in decoding NBT
@@ -30,9 +30,9 @@ pub enum NbtError {
 }
 
 // Implement PartialEq manually, since std::io::Error is not PartialEq.
-impl PartialEq<NbtError> for NbtError {
-    fn eq(&self, other: &NbtError) -> bool {
-        use NbtError::{IoError, InvalidTypeId, HeterogeneousList, NoRootCompound,
+impl PartialEq<Error> for Error {
+    fn eq(&self, other: &Error) -> bool {
+        use Error::{IoError, InvalidTypeId, HeterogeneousList, NoRootCompound,
                        InvalidUtf8, IncompleteNbtValue};
 
         match (self, other) {
@@ -47,42 +47,42 @@ impl PartialEq<NbtError> for NbtError {
     }
 }
 
-impl From<io::Error> for NbtError {
-    fn from(e: io::Error) -> NbtError {
-        NbtError::IoError(e)
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Error {
+        Error::IoError(e)
     }
 }
 
-impl From<string::FromUtf8Error> for NbtError {
-    fn from(_: string::FromUtf8Error) -> NbtError {
-        NbtError::InvalidUtf8
+impl From<string::FromUtf8Error> for Error {
+    fn from(_: string::FromUtf8Error) -> Error {
+        Error::InvalidUtf8
     }
 }
 
-impl From<byteorder::Error> for NbtError {
-    fn from(err: byteorder::Error) -> NbtError {
+impl From<byteorder::Error> for Error {
+    fn from(err: byteorder::Error) -> Error {
         match err {
-            // Promote byteorder's I/O errors to NbtError's I/O errors.
-            byteorder::Error::Io(e) => NbtError::IoError(e),
+            // Promote byteorder's I/O errors to Error's I/O errors.
+            byteorder::Error::Io(e) => Error::IoError(e),
             // Anything else is really an incomplete value.
-            byteorder::Error::UnexpectedEOF => NbtError::IncompleteNbtValue
+            byteorder::Error::UnexpectedEOF => Error::IncompleteNbtValue
         }
     }
 }
 
-impl From<NbtError> for io::Error {
-    fn from(e: NbtError) -> io::Error {
+impl From<Error> for io::Error {
+    fn from(e: Error) -> io::Error {
         match e {
-            NbtError::IoError(e) => e,
-            NbtError::InvalidTypeId(id) =>
+            Error::IoError(e) => e,
+            Error::InvalidTypeId(id) =>
                 io::Error::new(InvalidInput, &format!("invalid NBT value type: {}", id)[..]),
-            NbtError::HeterogeneousList =>
+            Error::HeterogeneousList =>
                 io::Error::new(InvalidInput, "List values must be homogeneous"),
-            NbtError::NoRootCompound =>
+            Error::NoRootCompound =>
                 io::Error::new(InvalidInput, "root value must be a Compound (0x0a)"),
-            NbtError::InvalidUtf8 =>
+            Error::InvalidUtf8 =>
                 io::Error::new(InvalidInput, "string is not UTF-8"),
-            NbtError::IncompleteNbtValue =>
+            Error::IncompleteNbtValue =>
                 io::Error::new(InvalidInput, "data does not represent a complete NbtValue"),
         }
     }

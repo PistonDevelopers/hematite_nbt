@@ -5,7 +5,7 @@ use std::fs::File;
 use test::Bencher;
 
 use blob::NbtBlob;
-use error::NbtError;
+use error::Error;
 use value::NbtValue;
 
 #[test]
@@ -149,7 +149,7 @@ fn nbt_no_root() {
     let bytes = vec![0x00];
     // Will fail, because the root is not a compound.
     assert_eq!(NbtBlob::from_reader(&mut io::Cursor::new(&bytes[..])),
-            Err(NbtError::NoRootCompound));
+            Err(Error::NoRootCompound));
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn nbt_no_end_tag() {
 
     // Will fail, because there is no end tag.
     assert_eq!(NbtBlob::from_reader(&mut io::Cursor::new(&bytes[..])),
-            Err(NbtError::IncompleteNbtValue));
+            Err(Error::IncompleteNbtValue));
 }
 
 #[test]
@@ -181,7 +181,7 @@ fn nbt_invalid_id() {
         0x00
     ];
     assert_eq!(NbtBlob::from_reader(&mut io::Cursor::new(&bytes[..])),
-               Err(NbtError::InvalidTypeId(15)));
+               Err(Error::InvalidTypeId(15)));
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn nbt_invalid_list() {
     badlist.push(NbtValue::Short(1));
     // Will fail to insert, because the List is heterogeneous.
     assert_eq!(nbt.insert("list".to_string(), NbtValue::List(badlist)),
-               Err(NbtError::HeterogeneousList));
+               Err(Error::HeterogeneousList));
 }
 
 #[test]

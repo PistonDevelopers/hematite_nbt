@@ -9,7 +9,7 @@ extern crate flate2;
 
 /* Re-export the core API from submodules. */
 pub use blob::NbtBlob;
-pub use error::NbtError;
+pub use error::Error;
 pub use value::NbtValue;
 
 mod blob;
