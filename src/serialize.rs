@@ -1,3 +1,9 @@
+//! Contains functions for serializing arbitrary objects to the Named Binary
+//! Tag format.
+//!
+//! For working with existing serialization implementations, see `to_writer`.
+//! For custom types, implement the `NbtFmt` trait.
+
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::io;
@@ -6,10 +12,60 @@ use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
 
 use error::NbtError;
 
+/// A trait indicating that the type has a Named Binary Tag representation.
+///
+/// Keep in mind that not all Rust types (notably unsigned integers) have an
+/// obvious NBT representation, and so structs that implement this trait may
+/// have to convert them to one that does.
+///
+/// ## Serialization
+///
+/// To enable NBT serialization of a type, implement the `to_bare_nbt` method.
+/// Many basic types (`i8`, `i16`, `String`, etc.) implement `NbtFmt`, enabling
+/// the use of `to_nbt` when writing this implementation. The `close_nbt`
+/// function is also provided to aid in implementing custom serialization,
+/// given that types will likely advertise themselves as Compound-like. For
+/// example:
+///
+/// ```rust
+/// extern crate nbt;
+///
+/// use nbt::NbtError;
+/// use nbt::serialize::{NbtFmt, to_writer, close_nbt};
+///
+/// struct MyMob {
+///     name: String,
+///     health: i8
+/// }
+///
+/// impl NbtFmt for MyMob {
+///     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+///        where W: std::io::Write
+///     {
+///         try!(self.name.to_nbt(dst, "name"));
+///         try!(self.health.to_nbt(dst, "health"));
+///
+///         close_nbt(dst)
+///     }
+/// }
+///
+/// fn main() {
+///     let mut bytes = Vec::new();
+///     let mob = MyMob { name: "Dr. Evil".to_string(), health: 240 };
+///
+///     to_writer(&mut bytes, mob).unwrap();
+/// }
+/// ```
+///
 pub trait NbtFmt {
+
+    /// Convert this type to NBT format using the specified `io::Write`
+    /// destination, but does not serialize its identifying NBT tag or name.
     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
        where W: io::Write;
 
+    /// Convert this type to NBT format using the specified `io::Write`
+    /// destination, incuding its tag and a given name.
     #[inline]
     fn to_nbt<W, S>(&self, dst: &mut W, name: S) -> Result<(), NbtError>
        where W: io::Write,
@@ -20,16 +76,32 @@ pub trait NbtFmt {
         self.to_bare_nbt(dst)
     }
     
+    /// Indicates the NBT tag that this type corresponds to. Most custom types
+    /// (usually structs) will advertise the default, `0x0a`, which is the
+    /// default.
     #[inline] fn tag() -> u8 { 0x0a }
+
+    /// Indicates whether this type is "bare", in that it must be wrapped in an
+    /// NBT Compound before serialization. By default this is `false`, since
+    /// most imeplementations will be Compound-like objects. Primitive NBT
+    /// types (`i8`, `i16`, `String`, etc.) return `true`.
     #[inline] fn is_bare() -> bool { false }
 }
 
+/// A convenience function for closing NBT format objects.
+///
+/// This function writes a single `0x00` byte to the `io::Write` destination,
+/// which in the NBT format indicates that an open Compound is now closed.
 pub fn close_nbt<W>(dst: &mut W) -> Result<(), NbtError>
     where W: io::Write {
 
     dst.write_u8(0x00).map_err(From::from)
 }
 
+/// Serializes an object into NBT format at a given destination.
+///
+/// This function will try to ensure that the output is always a valid NBT
+/// file, i.e. that it has a top-level Compound.
 pub fn to_writer<W, T>(dst: &mut W, obj: T) -> Result<(), NbtError>
     where W: io::Write,
           T: NbtFmt
