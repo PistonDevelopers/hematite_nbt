@@ -13,7 +13,11 @@ struct TestStruct {
     food: f32,
     emeralds: i16,
     timestamp: i32
-  }
+}
+
+#[allow(dead_code)]
+#[derive(NbtFmt)]
+struct TestTupleStruct(i8, i8, f32);
 
 #[test]
 fn nbt_test_struct_serialize() {
