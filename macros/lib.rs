@@ -1,4 +1,4 @@
-//! This crate contains a compiler plugin to generate NBT binary format
+//! This crate contains a compiler plugin to generate Named Binary Tag format
 //! serialization code for custom structs. It can be used as follows:
 //!
 //! ```ignore
@@ -12,8 +12,8 @@
 //! 
 //! #[derive(NbtFmt)]
 //! struct MyMob {
-//! 	name: String,
-//! 	health: i8
+//!     name: String,
+//!     health: i8
 //! }
 //!
 //! fn main() {
@@ -28,14 +28,14 @@
 //! 
 //! ```ignore
 //! impl NbtFmt for MyMob {
-//! 	fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
-//! 	   where W: std::io::Write
-//! 	{
-//! 		try!(self.name.to_nbt(dst, "name"));
+//!     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+//!        where W: std::io::Write
+//!     {
+//!         try!(self.name.to_nbt(dst, "name"));
 //!         try!(self.health.to_nbt(dst, "health"));
 //! 
 //!         close_nbt(dst)
-//! 	}
+//!     }
 //! }
 //! ```
 //! 
@@ -78,17 +78,17 @@ macro_rules! path {
 }
 
 macro_rules! pathexpr {
-	($cx:ident, $span:ident, $($x:ident)::+) => (
-		$cx.expr_path($cx.path_global($span,
-			vec![ $( $cx.ident_of( stringify!($x) ) ),+ ]))
-	)
+    ($cx:ident, $span:ident, $($x:ident)::+) => (
+        $cx.expr_path($cx.path_global($span,
+            vec![ $( $cx.ident_of( stringify!($x) ) ),+ ]))
+    )
 }
 
 pub fn expand_derive_nbtfmt(cx: &mut ExtCtxt, span: Span, meta_item: &MetaItem,
                             item: &Annotatable,
                             push: &mut FnMut(Annotatable))
 {
-	let w_arg = Path::new_local("__W");
+    let w_arg = Path::new_local("__W");
     let trait_def = TraitDef {
         span: span,
         attributes: Vec::new(),
@@ -164,15 +164,15 @@ fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Exp
     
     match *substr.fields {
         Struct(ref fields) => {   
-        	// Unit structs are kind of irrelevant for NBT, so throw an error
-        	// if someone tries to derive(NbtFmt) over one.         
+            // Unit structs are kind of irrelevant for NBT, so throw an error
+            // if someone tries to derive(NbtFmt) over one.
             if fields.is_empty() {
                 cx.span_err(trait_span,
                             "`NbtFmt` has no meaning for unit structs.");
                 cx.expr_fail(trait_span, InternedString::new(""))
             } else if fields[0].name.is_none() {
-            	// FIXME: Handle tuple structs using to_nbt
-            	// with name = "".
+                // FIXME: Handle tuple structs using to_nbt with each name as
+                //  "field0", etc.
                 cx.span_err(trait_span,
                             "`NbtFmt` cannot yet be derived for tuple structs.");
                 cx.expr_fail(trait_span, InternedString::new(""))
@@ -180,7 +180,7 @@ fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Exp
                 let mut stmts = Vec::new();
 
                 for &FieldInfo { ref self_, span, name, .. } in fields {
-                	// FIXME: Use cx.bug for properly handling unnamed fields.
+                    // FIXME: Use cx.bug for properly handling unnamed fields.
                     stmts.push(call_nbt_fmt(span, self_.clone(), name.unwrap().clone()));
                 }
 
