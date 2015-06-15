@@ -4,7 +4,7 @@ use std::io;
 
 use byteorder::{ByteOrder, BigEndian, WriteBytesExt, ReadBytesExt};
 
-use error::Error;
+use error::{Error, Result};
 
 /// A value which can be represented in the Named Binary Tag (NBT) file format.
 #[derive(Clone, Debug, PartialEq)]
@@ -85,7 +85,7 @@ impl NbtValue {
 
     /// Writes the header (that is, the value's type ID and optionally a title)
     /// of this `NbtValue` to an `io::Write` destination.
-    pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<(), Error> {
+    pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<()> {
         try!(dst.write_u8(self.id()));
         try!(dst.write_u16::<BigEndian>(title.len() as u16));
         try!(dst.write_all(title.as_bytes()));
@@ -93,7 +93,7 @@ impl NbtValue {
     }
 
     /// Writes the payload of this `NbtValue` to an `io::Write` destination.
-    pub fn write(&self, mut dst: &mut io::Write) -> Result<(), Error> {
+    pub fn write(&self, mut dst: &mut io::Write) -> Result<()> {
         match *self {
             NbtValue::Byte(val)   => try!(dst.write_i8(val)),
             NbtValue::Short(val)  => try!(dst.write_i16::<BigEndian>(val)),
@@ -152,7 +152,7 @@ impl NbtValue {
 
     /// Reads any valid `NbtValue` header (that is, a type ID and a title of
     /// arbitrary UTF-8 bytes) from an `io::Read` source.
-    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String), Error> {
+    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String)> {
         let id = try!(src.read_u8());
         if id == 0x00 { return Ok((0x00, "".to_string())); }
         // Extract the name.
@@ -167,7 +167,7 @@ impl NbtValue {
 
     /// Reads the payload of an `NbtValue` with a given type ID from an
     /// `io::Read` source.
-    pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<NbtValue, Error> {
+    pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<NbtValue> {
         match id {
             0x01 => Ok(NbtValue::Byte(try!(src.read_i8()))),
             0x02 => Ok(NbtValue::Short(try!(src.read_i16::<BigEndian>()))),
@@ -220,7 +220,7 @@ impl NbtValue {
 }
 
 impl fmt::Display for NbtValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             NbtValue::Byte(v)   => write!(f, "{}", v),
             NbtValue::Short(v)  => write!(f, "{}", v),
@@ -306,7 +306,7 @@ impl<'a> From<&'a [i32]> for NbtValue {
 /// Returns a `Vec<u8>` containing the next `len` bytes in the reader.
 ///
 /// Adapted from `byteorder::read_full`.
-fn read_utf8(mut src: &mut io::Read, len: usize) -> Result<String, Error> {
+fn read_utf8(mut src: &mut io::Read, len: usize) -> Result<String> {
     let mut bytes = vec![0; len];
     let mut n_read = 0usize;
     while n_read < bytes.len() {

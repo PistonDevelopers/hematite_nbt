@@ -7,7 +7,7 @@ use flate2::Compression;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use flate2::write::{GzEncoder, ZlibEncoder};
 
-use error::Error;
+use error::{Error, Result};
 use value::NbtValue;
 
 /// An object in the Named Binary Tag (NBT) file format.
@@ -47,7 +47,7 @@ impl NbtBlob {
     }
 
     /// Extracts an `NbtBlob` object from an `io::Read` source.
-    pub fn from_reader(mut src: &mut io::Read) -> Result<NbtBlob, Error> {
+    pub fn from_reader(mut src: &mut io::Read) -> Result<NbtBlob> {
         let header = try!(NbtValue::read_header(src));
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
@@ -61,7 +61,7 @@ impl NbtBlob {
 
     /// Extracts an `NbtBlob` object from an `io::Read` source that is
     /// compressed using the Gzip format.
-    pub fn from_gzip(src: &mut io::Read) -> Result<NbtBlob, Error> {
+    pub fn from_gzip(src: &mut io::Read) -> Result<NbtBlob> {
         // Reads the gzip header, and fails if it is incorrect.
         let mut data = try!(GzDecoder::new(src));
         NbtBlob::from_reader(&mut data)
@@ -69,26 +69,26 @@ impl NbtBlob {
 
     /// Extracts an `NbtBlob` object from an `io::Read` source that is
     /// compressed using the zlib format.
-    pub fn from_zlib(src: &mut io::Read) -> Result<NbtBlob, Error> {
+    pub fn from_zlib(src: &mut io::Read) -> Result<NbtBlob> {
         NbtBlob::from_reader(&mut ZlibDecoder::new(src))
     }
 
     /// Writes the binary representation of this `NbtBlob` to an `io::Write`
     /// destination.
-    pub fn write(&self, dst: &mut io::Write) -> Result<(), Error> {
+    pub fn write(&self, dst: &mut io::Write) -> Result<()> {
         try!(self.content.write_header(dst, &self.title));
         self.content.write(dst)
     }
 
     /// Writes the binary representation of this `NbtBlob`, compressed using
     /// the Gzip format, to an `io::Write` destination.
-    pub fn write_gzip(&self, dst: &mut io::Write) -> Result<(), Error> {
+    pub fn write_gzip(&self, dst: &mut io::Write) -> Result<()> {
         self.write(&mut GzEncoder::new(dst, Compression::Default))
     }
 
     /// Writes the binary representation of this `NbtBlob`, compressed using
     /// the Zlib format, to an `io::Write` dst.
-    pub fn write_zlib(&self, dst: &mut io::Write) -> Result<(), Error> {
+    pub fn write_zlib(&self, dst: &mut io::Write) -> Result<()> {
         self.write(&mut ZlibEncoder::new(dst, Compression::Default))
     }
 
@@ -99,7 +99,7 @@ impl NbtBlob {
     /// This method will also return an error if a `NbtValue::List` with
     /// heterogeneous elements is passed in, because this is illegal in the NBT
     /// file format.
-    pub fn insert<V>(&mut self, name: String, value: V) -> Result<(), Error>
+    pub fn insert<V>(&mut self, name: String, value: V) -> Result<()>
            where V: Into<NbtValue> {
         // The follow prevents `List`s with heterogeneous tags from being
         // inserted into the file. It would be nicer to return an error, but
@@ -142,7 +142,7 @@ impl<'a> Index<&'a str> for NbtBlob {
 }
 
 impl fmt::Display for NbtBlob {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "TAG_Compound(\"{}\"): {}", self.title, self.content)
     }
 }

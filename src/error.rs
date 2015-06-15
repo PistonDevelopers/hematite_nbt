@@ -1,14 +1,21 @@
+use std::error::Error as StdError;
+use std::fmt;
 use std::io;
 use std::io::ErrorKind::InvalidInput;
+use std::result::Result as StdResult;
 use std::string;
 
 use byteorder;
+
+/// A convenient alias type for results when reading/writing the Named Binary
+/// Tag format.
+pub type Result<T> = StdResult<T, Error>;
 
 /// Errors that may be encountered when constructing, parsing, or encoding
 /// `NbtValue` and `NbtBlob` objects.
 ///
 /// `Error`s can be seamlessly converted to more general `io::Error` objects
-/// using the `FromError` trait.
+/// using `std::convert::From::from()`.
 #[derive(Debug)]
 pub enum Error {
     /// Wraps errors emitted by methods during I/O operations.
@@ -27,6 +34,35 @@ pub enum Error {
     /// An error for when NBT binary representations are missing end tags,
     /// contain fewer bytes than advertised, or are otherwise incomplete.
     IncompleteNbtValue,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Error::IoError(ref e) => e.fmt(f),
+            other                 => write!(f, "{}", other.description()),
+        }
+    }
+}
+
+impl StdError for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::IoError(ref e)     => e.description(),
+            Error::InvalidTypeId(_)   => "invalid NBT tag byte",
+            Error::HeterogeneousList  => "values in NBT Lists must be homogeneous",
+            Error::NoRootCompound     => "the root value must be Compound-like (tag = 0x0a)",
+            Error::InvalidUtf8        => "a string is not valid UTF-8",
+            Error::IncompleteNbtValue => "data does not represent a complete NbtValue",
+        }
+    }
+
+    fn cause(&self) -> Option<&StdError> {
+        match *self {
+            Error::IoError(ref e) => e.cause(),
+            _ => None
+        }
+    }
 }
 
 // Implement PartialEq manually, since std::io::Error is not PartialEq.
@@ -75,15 +111,8 @@ impl From<Error> for io::Error {
         match e {
             Error::IoError(e) => e,
             Error::InvalidTypeId(id) =>
-                io::Error::new(InvalidInput, &format!("invalid NBT value type: {}", id)[..]),
-            Error::HeterogeneousList =>
-                io::Error::new(InvalidInput, "List values must be homogeneous"),
-            Error::NoRootCompound =>
-                io::Error::new(InvalidInput, "root value must be a Compound (0x0a)"),
-            Error::InvalidUtf8 =>
-                io::Error::new(InvalidInput, "string is not UTF-8"),
-            Error::IncompleteNbtValue =>
-                io::Error::new(InvalidInput, "data does not represent a complete NbtValue"),
+                io::Error::new(InvalidInput, &format!("invalid NBT tag byte: {}", id)[..]),
+            other => io::Error::new(InvalidInput, other.description()),
         }
     }
 }
