@@ -10,7 +10,7 @@ use std::io;
 
 use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
 
-use error::NbtError;
+use error::{Error, Result};
 
 /// A trait indicating that the type has a Named Binary Tag representation.
 ///
@@ -30,7 +30,6 @@ use error::NbtError;
 /// ```rust
 /// extern crate nbt;
 ///
-/// use nbt::NbtError;
 /// use nbt::serialize::{NbtFmt, to_writer, close_nbt};
 ///
 /// struct MyMob {
@@ -39,7 +38,7 @@ use error::NbtError;
 /// }
 ///
 /// impl NbtFmt for MyMob {
-///     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+///     fn to_bare_nbt<W>(&self, dst: &mut W) -> nbt::Result<()>
 ///        where W: std::io::Write
 ///     {
 ///         try!(self.name.to_nbt(dst, "name"));
@@ -61,13 +60,13 @@ pub trait NbtFmt {
 
     /// Convert this type to NBT format using the specified `io::Write`
     /// destination, but does not serialize its identifying NBT tag or name.
-    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write;
 
     /// Convert this type to NBT format using the specified `io::Write`
     /// destination, incuding its tag and a given name.
     #[inline]
-    fn to_nbt<W, S>(&self, dst: &mut W, name: S) -> Result<(), NbtError>
+    fn to_nbt<W, S>(&self, dst: &mut W, name: S) -> Result<()>
        where W: io::Write,
              S: AsRef<str>
     {
@@ -92,7 +91,7 @@ pub trait NbtFmt {
 ///
 /// This function writes a single `0x00` byte to the `io::Write` destination,
 /// which in the NBT format indicates that an open Compound is now closed.
-pub fn close_nbt<W>(dst: &mut W) -> Result<(), NbtError>
+pub fn close_nbt<W>(dst: &mut W) -> Result<()>
     where W: io::Write {
 
     dst.write_u8(0x00).map_err(From::from)
@@ -102,13 +101,13 @@ pub fn close_nbt<W>(dst: &mut W) -> Result<(), NbtError>
 ///
 /// This function will try to ensure that the output is always a valid NBT
 /// file, i.e. that it has a top-level Compound.
-pub fn to_writer<W, T>(dst: &mut W, obj: T) -> Result<(), NbtError>
+pub fn to_writer<W, T>(dst: &mut W, obj: T) -> Result<()>
     where W: io::Write,
           T: NbtFmt
 {
     match T::is_bare() {
         // Refuse to blindly serialize types not wrapped in an NBT Compound.
-        true  => { return Err(NbtError::NoRootCompound); },
+        true  => { return Err(Error::NoRootCompound); },
         false => obj.to_nbt(dst, ""),
     }
 }
@@ -117,7 +116,7 @@ macro_rules! nbtfmt_value {
   ($T:ty, $method:ident, $tag:expr) => (
     impl NbtFmt for $T {
         #[inline]
-        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
         {
             $method(dst, *self)
@@ -133,7 +132,7 @@ macro_rules! nbtfmt_ptr {
   ($T:ty, $method:ident, $tag:expr) => (
     impl NbtFmt for $T {
         #[inline]
-        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
         {
             $method(dst, self)
@@ -149,7 +148,7 @@ macro_rules! nbtfmt_slice {
   ($T:ty, $method:ident, $tag:expr) => (
     impl NbtFmt for $T {
         #[inline]
-        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
         {
             $method(dst, &self[..])
@@ -183,7 +182,7 @@ nbtfmt_ptr!([i32], write_bare_int_array, 0x0b);
 // nbtfmt_slice!(Vec<i32>, write_bare_int_array, 0x0b);
 
 // impl<T> NbtFmt for [T] where T: NbtFmt {
-//  fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+//  fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
 //        where W: io::Write {
         
 //          write_bare_list(dst, self.iter())
@@ -196,7 +195,7 @@ nbtfmt_ptr!([i32], write_bare_int_array, 0x0b);
 
 impl<T> NbtFmt for Vec<T> where T: NbtFmt {
     #[inline]
-    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write
     {
            write_bare_list(dst, self.iter())
@@ -208,7 +207,7 @@ impl<T> NbtFmt for Vec<T> where T: NbtFmt {
 
 impl<S, T> NbtFmt for HashMap<S, T> where S: AsRef<str> + Hash + Eq, T: NbtFmt {
     #[inline]
-    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write
     {
         write_bare_compound(dst, self.iter())
@@ -220,7 +219,7 @@ impl<S, T> NbtFmt for HashMap<S, T> where S: AsRef<str> + Hash + Eq, T: NbtFmt {
 
 impl<S, T> NbtFmt for BTreeMap<S, T> where S: AsRef<str>, T: NbtFmt {
     #[inline]
-    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write
     {
         write_bare_compound(dst, self.iter())
@@ -231,49 +230,49 @@ impl<S, T> NbtFmt for BTreeMap<S, T> where S: AsRef<str>, T: NbtFmt {
 }
 
 #[inline]
-fn write_bare_byte<W>(dst: &mut W, value: i8) -> Result<(), NbtError>
+fn write_bare_byte<W>(dst: &mut W, value: i8) -> Result<()>
    where W: io::Write {
 
     dst.write_i8(value).map_err(From::from)
 }
 
 #[inline]
-fn write_bare_short<W>(dst: &mut W, value: i16) -> Result<(), NbtError>
+fn write_bare_short<W>(dst: &mut W, value: i16) -> Result<()>
    where W: io::Write {
 
     dst.write_i16::<BigEndian>(value).map_err(From::from)
 }
 
 #[inline]
-fn write_bare_int<W>(dst: &mut W, value: i32) -> Result<(), NbtError>
+fn write_bare_int<W>(dst: &mut W, value: i32) -> Result<()>
    where W: io::Write {
 
     dst.write_i32::<BigEndian>(value).map_err(From::from)
 }
 
 #[inline]
-fn write_bare_long<W>(dst: &mut W, value: i64) -> Result<(), NbtError>
+fn write_bare_long<W>(dst: &mut W, value: i64) -> Result<()>
    where W: io::Write {
 
     dst.write_i64::<BigEndian>(value).map_err(From::from)
 }
 
 #[inline]
-fn write_bare_float<W>(dst: &mut W, value: f32) -> Result<(), NbtError>
+fn write_bare_float<W>(dst: &mut W, value: f32) -> Result<()>
    where W: io::Write {
 
     dst.write_f32::<BigEndian>(value).map_err(From::from)
 }
 
 #[inline]
-fn write_bare_double<W>(dst: &mut W, value: f64) -> Result<(), NbtError>
+fn write_bare_double<W>(dst: &mut W, value: f64) -> Result<()>
    where W: io::Write {
 
     dst.write_f64::<BigEndian>(value).map_err(From::from)
 }
 
 #[inline]
-fn write_bare_byte_array<W>(dst: &mut W, value: &[i8]) -> Result<(), NbtError>
+fn write_bare_byte_array<W>(dst: &mut W, value: &[i8]) -> Result<()>
    where W: io::Write {
 
     try!(dst.write_i32::<BigEndian>(value.len() as i32));
@@ -284,7 +283,7 @@ fn write_bare_byte_array<W>(dst: &mut W, value: &[i8]) -> Result<(), NbtError>
 }
 
 #[inline]
-fn write_bare_int_array<W>(dst: &mut W, value: &[i32]) -> Result<(), NbtError>
+fn write_bare_int_array<W>(dst: &mut W, value: &[i32]) -> Result<()>
    where W: io::Write {
 
     try!(dst.write_i32::<BigEndian>(value.len() as i32));
@@ -295,7 +294,7 @@ fn write_bare_int_array<W>(dst: &mut W, value: &[i32]) -> Result<(), NbtError>
 }
 
 #[inline]
-fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<(), NbtError>
+fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<()>
    where W: io::Write {
     
     try!(dst.write_u16::<BigEndian>(value.len() as u16));
@@ -303,7 +302,7 @@ fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<(), NbtError>
 }
 
 #[inline]
-fn write_bare_list<'a, W, I, T>(dst: &mut W, values: I) -> Result<(), NbtError>
+fn write_bare_list<'a, W, I, T>(dst: &mut W, values: I) -> Result<()>
    where W: io::Write,
          I: Iterator<Item=&'a T> + ExactSizeIterator,
          T: 'a + NbtFmt {
@@ -322,7 +321,7 @@ fn write_bare_list<'a, W, I, T>(dst: &mut W, values: I) -> Result<(), NbtError>
 }
 
 #[inline]
-fn write_bare_compound<'a, W, I, T, S>(dst: &mut W, values: I) -> Result<(), NbtError>
+fn write_bare_compound<'a, W, I, T, S>(dst: &mut W, values: I) -> Result<()>
    where W: io::Write,
          I: Iterator<Item=(&'a S, &'a T)>,
          S: 'a + AsRef<str>,
@@ -349,7 +348,7 @@ fn serialize_basic_types() {
   }
 
   impl NbtFmt for TestStruct {
-    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write {
 
             try!(self.name.to_nbt(dst, "name"));

@@ -7,7 +7,6 @@
 //! 
 //! extern crate nbt;
 //! 
-//! use nbt::NbtError;
 //! use nbt::serialize::{NbtFmt, to_writer};
 //! 
 //! #[derive(NbtFmt)]
@@ -28,7 +27,7 @@
 //! 
 //! ```ignore
 //! impl NbtFmt for MyMob {
-//!     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<(), NbtError>
+//!     fn to_bare_nbt<W>(&self, dst: &mut W) -> nbt::Result<()>
 //!        where W: std::io::Write
 //!     {
 //!         try!(self.name.to_nbt(dst, "name"));
@@ -109,13 +108,13 @@ pub fn expand_derive_nbtfmt(cx: &mut ExtCtxt, span: Span, meta_item: &MetaItem,
                 // Pass a single argument of type `&mut __W`.
                 args: vec!(Ptr(Box::new(Literal(w_arg)),
                                Borrowed(None, Mutability::MutMutable))),
-                // Return a `Result<(), nbt::NbtError>`.
+                // Return a `Result<(), nbt::Error>`.
                 ret_ty: Literal(Path::new_(
                     pathvec!(std::result::Result),
                     None,
                     vec!(Box::new(Tuple(Vec::new())), // Unit.
-                         Box::new(Literal(Path::new_( // nbt::NbtError
-                             pathvec!(nbt::NbtError),
+                         Box::new(Literal(Path::new_( // nbt::Error
+                             pathvec!(nbt::Error),
                              None, Vec::new(), true)))),
                     true)),
                 attributes: Vec::new(), // FIXME: Benchmark adding #[inline].
