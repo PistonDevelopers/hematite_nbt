@@ -47,6 +47,7 @@ extern crate rustc;
 extern crate syntax;
 
 use syntax::ast::{Expr, MetaItem, Mutability};
+use syntax::attr::AttrMetaMethods;
 use syntax::codemap::Span;
 use syntax::ext::base::{Annotatable, ExtCtxt, MultiDecorator};
 use syntax::ext::build::AstBuilder;
@@ -194,14 +195,28 @@ fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Exp
                     stmts.push(call_nbt_fmt(field.span, field.self_.clone(), name_));
                 }
             } else {
-                for &FieldInfo { ref self_, span, name, .. } in fields {
+                for &FieldInfo { ref self_, span, name, attrs, .. } in fields {
                     // Just in case there is a compiler bug and we get an
                     // unnamed field in the middle of a struct, call `cx.bug`.
                     if let None = name {
                         cx.span_bug(trait_span, "unnamed field in named struct")
                     }
 
-                    let name_ = get_ident(name.unwrap());
+                    let mut name_ = get_ident(name.unwrap());
+
+                    // Optionally change the name of the field when the
+                    // #[nbt_field = "fieldX"] attribute is present on the item.
+                    for ref attr in attrs {
+                        if attr.check_name("nbt_field") {
+                            if let Some(s) = attr.value_str() {
+                                name_ = s;
+                            } else {
+                                cx.span_err(span, "`#[nbt_field]` requires a &str value.");
+                                return cx.expr_fail(trait_span, InternedString::new(""));
+                            }
+                            break;
+                        }
+                    }
 
                     // Apply the closure on this named field.
                     stmts.push(call_nbt_fmt(span, self_.clone(), name_));

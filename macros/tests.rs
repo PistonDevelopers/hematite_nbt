@@ -1,4 +1,4 @@
-#![feature(plugin, test, custom_derive)]
+#![feature(plugin, test, custom_derive, custom_attribute)]
 #![plugin(nbt_macros)]
 
 extern crate nbt;
@@ -11,7 +11,8 @@ struct TestStruct {
     name: String,
     health: i8,
     food: f32,
-    emeralds: i16,
+    #[nbt_field = "emeralds"]
+    ems: i16,
     timestamp: i32
 }
 
@@ -23,7 +24,7 @@ struct TestTupleStruct(i8, i8, f32);
 fn nbt_test_struct_serialize() {
   let test = TestStruct {
     name: "Herobrine".to_string(),
-    health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774
+    health: 100, food: 20.0, ems: 12345, timestamp: 1424778774
   };
 
   let mut dst = Vec::new();
