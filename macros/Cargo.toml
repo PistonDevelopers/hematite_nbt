@@ -13,5 +13,12 @@ plugin = true
 name = "all"
 path = "tests.rs"
 
+[[test]]
+name = "compiletests"
+path = "tests/compiletest.rs"
+
 [dependencies.nbt]
 path = ".."
+
+[dev-dependencies]
+compiletest_rs = "*"

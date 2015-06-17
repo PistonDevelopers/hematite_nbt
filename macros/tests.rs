@@ -16,21 +16,17 @@ struct TestStruct {
     timestamp: i32
 }
 
-#[allow(dead_code)]
-#[derive(NbtFmt)]
-struct TestTupleStruct(i8, i8, f32);
-
 #[test]
 fn nbt_test_struct_serialize() {
-  let test = TestStruct {
-    name: "Herobrine".to_string(),
-    health: 100, food: 20.0, ems: 12345, timestamp: 1424778774
-  };
+    let test = TestStruct {
+        name: "Herobrine".to_string(),
+        health: 100, food: 20.0, ems: 12345, timestamp: 1424778774
+    };
 
-  let mut dst = Vec::new();
-  serialize::to_writer(&mut dst, test).unwrap();
+    let mut dst = Vec::new();
+    serialize::to_writer(&mut dst, test).unwrap();
 
-  let bytes = [
+    let bytes = [
         0x0a,
             0x00, 0x00,
             0x08,
