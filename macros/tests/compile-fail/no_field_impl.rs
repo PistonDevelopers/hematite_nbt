@@ -10,7 +10,9 @@ struct Inner {
 #[derive(NbtFmt)]
 struct Outer {
     name: String,
-    inner: Inner //~ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
+    inner: Inner
+ //~^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
+ //~^^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
 }
 
 fn main() { }

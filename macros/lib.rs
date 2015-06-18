@@ -41,11 +41,12 @@
 //! Which will work so long as the fields of the struct have `NbtFmt`
 //! implementations of their own.
 
-#![feature(plugin_registrar, rustc_private)]
+#![feature(plugin_registrar, rustc_private, box_syntax)]
 
 extern crate rustc;
 extern crate syntax;
 
+use syntax::ast;
 use syntax::ast::{Expr, MetaItem, Mutability};
 use syntax::attr::AttrMetaMethods;
 use syntax::codemap::Span;
@@ -53,16 +54,15 @@ use syntax::ext::base::{Annotatable, ExtCtxt, MultiDecorator};
 use syntax::ext::build::AstBuilder;
 use syntax::ext::deriving::generic::*;
 use syntax::ext::deriving::generic::ty::*;
-use syntax::parse::token::{get_ident, intern_and_get_ident, InternedString};
+use syntax::parse::token::{get_ident, intern, intern_and_get_ident, InternedString};
 use syntax::ptr::P;
 
 
 #[plugin_registrar]
 #[doc(hidden)]
 pub fn plugin_registrar(reg: &mut rustc::plugin::Registry) {
-    reg.register_syntax_extension(
-        syntax::parse::token::intern("derive_NbtFmt"),
-        MultiDecorator(Box::new(expand_derive_nbtfmt)));
+    reg.register_syntax_extension(intern("derive_NbtFmt"),
+                                  MultiDecorator(box expand_derive_nbtfmt));
 }
 
 macro_rules! pathvec {
@@ -89,14 +89,31 @@ pub fn expand_derive_nbtfmt(cx: &mut ExtCtxt, span: Span, meta_item: &MetaItem,
                             item: &Annotatable,
                             push: &mut FnMut(Annotatable))
 {
-    let w_arg = Path::new_local("__W");
+    // First, check that we're deriving for a struct.
+    if let &Annotatable::Item(ref it) = item {
+        match it.node {
+            ast::Item_::ItemStruct(_, _) => (), // Allow structs only.
+            ast::Item_::ItemEnum(_, _) => {
+                cx.span_err(span, "`NbtFmt` cannot yet be derived for enums.");
+                return;
+            },
+            _ => {
+                cx.span_err(span, "#[derive(NbtFmt)] only allowed on structs.");
+                return;
+            }
+        }
+    } else {
+        cx.span_err(span, "#[derive(NbtFmt)] only allowed on structs.");
+        return;
+    }
+
     let trait_def = TraitDef {
         span: span,
         attributes: Vec::new(),
         path: path!(nbt::serialize::NbtFmt),
         additional_bounds: Vec::new(),
         generics: LifetimeBounds::empty(),
-        methods: vec!(
+        methods: vec![
             MethodDef {
                 name: "to_bare_nbt",
                 generics: LifetimeBounds {
@@ -107,40 +124,55 @@ pub fn expand_derive_nbtfmt(cx: &mut ExtCtxt, span: Span, meta_item: &MetaItem,
                 // Pass the immutable borrowed self argument, `&self`.
                 explicit_self: borrowed_explicit_self(),
                 // Pass a single argument of type `&mut __W`.
-                args: vec!(Ptr(Box::new(Literal(w_arg)),
-                               Borrowed(None, Mutability::MutMutable))),
+                args: vec![Ptr(box Literal(Path::new_local("__W")),
+                           Borrowed(None, Mutability::MutMutable))],
                 // Return a `Result<(), nbt::Error>`.
-                ret_ty: Literal(Path::new_(
-                    pathvec!(std::result::Result),
-                    None,
-                    vec!(Box::new(Tuple(Vec::new())), // Unit.
-                         Box::new(Literal(Path::new_( // nbt::Error
-                             pathvec!(nbt::Error),
-                             None, Vec::new(), true)))),
-                    true)),
+                ret_ty: Literal(Path {
+                    path: pathvec!(std::result::Result),
+                    lifetime: None,
+                    params: vec![box Tuple(Vec::new()), box Literal(path!(nbt::Error))],
+                    global: true }),
                 attributes: Vec::new(), // FIXME: Benchmark adding #[inline].
                 is_unsafe: false,
-                combine_substructure: combine_substructure(Box::new(|c, s, sub| {
-                    cs_nbtfmt(c, s, sub)
-                })),
-            }
-        ),
-        associated_types: Vec::new(),
+                combine_substructure: combine_substructure(box cs_to_bare_nbt),
+            },
+            MethodDef {
+                name: "read_bare_nbt",
+                generics: LifetimeBounds {
+                    lifetimes: Vec::new(),
+                    // This adds a <__R: std::io::Read> generic to the method.
+                    bounds: vec![("__R", vec![path!(std::io::Read)])],
+                },
+                // No self argument.
+                explicit_self: None,
+                // Pass a single argument of type `&mut __R`.
+                args: vec![Ptr(box Literal(Path::new_local("__R")),
+                               Borrowed(None, Mutability::MutMutable))],
+                // Return a `Result<Self, nbt::Error>`.
+                ret_ty: Literal(Path {
+                    path: pathvec!(std::result::Result),
+                    lifetime: None,
+                    params: vec![box Self_, box Literal(path!(nbt::Error))],
+                    global: true }),
+                attributes: Vec::new(), // FIXME: Benchmark adding #[inline].
+                is_unsafe: false,
+                combine_substructure: combine_substructure(box cs_read_bare_nbt)
+            },
+        ],
+        associated_types: vec![(cx.ident_of("Into"), Self_)],
     };
 
     trait_def.expand(cx, meta_item, item, push)
 }
 
-fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Expr> {
+fn cs_to_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Expr> {
     // Retrieve the argument passed to the to_bare_nbt function, i.e. the
     // `dst: &mut __W` bit. Since the method is already defined, there's no
     // reason for this to fail, so we call `cx.span_bug` indicating a compiler
     // error.
-    let dst_expr = match (substr.nonself_args.len(),
-                          substr.nonself_args.get(0)) {
+    let dst_expr = match (substr.nonself_args.len(), substr.nonself_args.get(0)) {
         (1, Some(dst)) => dst,
-        _ => cx.span_bug(trait_span,
-                         "incorrect number of arguments in `derive(NbtFmt)`")
+        _ => cx.span_bug(trait_span, "incorrect number of method arguments in `derive(NbtFmt)`")
     };
 
     // Define a closure that iterates over the fields in the struct and
@@ -152,7 +184,6 @@ fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Exp
         let self_arg = cx.expr_addr_of(span, struct_self);
 
         // Create a string literal expression for the field's identifier.
-        //let name_lit = get_ident(name);
         let name_expr = cx.expr_str(span, name);
 
         // Create a call expression, using the function path (nbt_fmt_path)
@@ -230,15 +261,13 @@ fn cs_nbtfmt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Exp
 
             cx.expr_block(cx.block(trait_span, stmts, Some(close)))
         },
-        EnumMatching(..) => {
-            cx.span_err(trait_span, "`NbtFmt` cannot yet be derived for enums.");
-            cx.expr_fail(trait_span, InternedString::new(""))
-        },
-        EnumNonMatchingCollapsed(..) => {
-            cx.span_bug(trait_span, "non-matching enum variants in `#[derive(NbtFmt)]`")
-        },
-        StaticEnum(..) | StaticStruct(..) => {
-            cx.span_bug(trait_span, "unexpected static method in `NbtFmt::to_bare_nbt`")
-        },
+        _ => cx.span_bug(trait_span, "impossible substructure in `#[derive(NbtFmt)]`")
+    }
+}
+
+fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Expr> {
+    match *substr.fields {
+        StaticStruct(_, _) => cx.expr_unreachable(trait_span),
+        _ => cx.span_bug(trait_span, "impossible substructure in `#[derive(NbtFmt)]`")
     }
 }

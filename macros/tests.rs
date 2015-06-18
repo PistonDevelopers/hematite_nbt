@@ -24,7 +24,7 @@ fn nbt_test_struct_serialize() {
     };
 
     let mut dst = Vec::new();
-    serialize::to_writer(&mut dst, test).unwrap();
+    serialize::to_writer(&mut dst, &test).unwrap();
 
     let bytes = [
         0x0a,
