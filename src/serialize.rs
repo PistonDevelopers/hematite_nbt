@@ -321,9 +321,9 @@ impl<S, T> NbtFmt for HashMap<S, T> where S: AsRef<str> + Hash + Eq, T: NbtFmt {
             let value = try!(T::read_bare_nbt(src));
 
             // Check for key collisions.
-            match rval.insert(key, value) {
+            match rval.insert(key.clone(), value) {
                 None    => (),
-                Some(_) => return Err(Error::UnexpectedField(key.to_string())),
+                Some(k) => return Err(Error::UnexpectedField(key)),
             };
         }
 
@@ -361,9 +361,9 @@ impl<S, T> NbtFmt for BTreeMap<S, T> where S: AsRef<str>, T: NbtFmt {
             let value = try!(T::read_bare_nbt(src));
 
             // Check for key collisions.
-            match rval.insert(key, value) {
+            match rval.insert(key.clone(), value) {
                 None    => (),
-                Some(_) => return Err(Error::UnexpectedField(key.to_string())),
+                Some(k) => return Err(Error::UnexpectedField(key)),
             };
         }
 
