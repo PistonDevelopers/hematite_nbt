@@ -129,7 +129,7 @@ pub fn emit_next_header<R>(src: &mut R) -> Result<(u8, String)>
 ///
 /// This function will try to ensure that the output is always a valid NBT
 /// file, i.e. that it has a top-level Compound.
-pub fn to_writer<W, T>(dst: &mut W, obj: T) -> Result<()>
+pub fn to_writer<W, T>(dst: &mut W, obj: &T) -> Result<()>
     where W: io::Write,
           T: NbtFmt
 {
