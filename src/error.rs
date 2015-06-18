@@ -34,6 +34,12 @@ pub enum Error {
     /// An error for when NBT binary representations are missing end tags,
     /// contain fewer bytes than advertised, or are otherwise incomplete.
     IncompleteNbtValue,
+    /// An error encountered when parsing NBT binary representations, where
+    /// deserialization encounters a different tag than expected.
+    TagMismatch(u8, u8),
+    /// An error encountered when parsing NBT binary representations, where
+    /// deserialization encounters a field name it is not expecting.
+    UnexpectedField(String),
 }
 
 impl fmt::Display for Error {
@@ -54,6 +60,8 @@ impl StdError for Error {
             Error::NoRootCompound     => "the root value must be Compound-like (tag = 0x0a)",
             Error::InvalidUtf8        => "a string is not valid UTF-8",
             Error::IncompleteNbtValue => "data does not represent a complete NbtValue",
+            Error::TagMismatch(_, _)  => "encountered one NBT tag but expected another",
+            Error::UnexpectedField(_) => "encountered an unexpected field",
         }
     }
 
@@ -69,7 +77,7 @@ impl StdError for Error {
 impl PartialEq<Error> for Error {
     fn eq(&self, other: &Error) -> bool {
         use Error::{IoError, InvalidTypeId, HeterogeneousList, NoRootCompound,
-                       InvalidUtf8, IncompleteNbtValue};
+                    InvalidUtf8, IncompleteNbtValue, TagMismatch, UnexpectedField};
 
         match (self, other) {
             (&IoError(_), &IoError(_))                 => true,
@@ -78,6 +86,8 @@ impl PartialEq<Error> for Error {
             (&NoRootCompound, &NoRootCompound)         => true,
             (&InvalidUtf8, &InvalidUtf8)               => true,
             (&IncompleteNbtValue, &IncompleteNbtValue) => true,
+            (&TagMismatch(a, b), &TagMismatch(c, d))   => a == c && b == d,
+            (&UnexpectedField(ref a), &UnexpectedField(ref b)) => a == b,
             _ => false
         }
     }
@@ -112,6 +122,12 @@ impl From<Error> for io::Error {
             Error::IoError(e) => e,
             Error::InvalidTypeId(id) =>
                 io::Error::new(InvalidInput, &format!("invalid NBT tag byte: {}", id)[..]),
+            Error::TagMismatch(a, b) =>
+                io::Error::new(InvalidInput, &format!("encountered NBT tag {} \
+                                                       but expected {}", a, b)[..]),
+            Error::UnexpectedField(f) =>
+                io::Error::new(InvalidInput, &format!("encountered unexpected field \
+                                                       with name {}", f)[..]),
             other => io::Error::new(InvalidInput, other.description()),
         }
     }
