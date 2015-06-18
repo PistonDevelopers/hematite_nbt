@@ -27,7 +27,7 @@ use error::{Error, Result};
 /// given that types will likely advertise themselves as Compound-like. For
 /// example:
 ///
-/// ```rust
+/// ```ignore
 /// extern crate nbt;
 ///
 /// use nbt::serialize::{NbtFmt, to_writer, close_nbt};
@@ -586,18 +586,19 @@ fn read_bare_list<R, T>(src: &mut R) -> Result<Vec<T>>
 
 #[test]
 fn serialize_basic_types() {
-  struct TestStruct {
-    name: String,
-    health: i8,
-    food: f32,
-    emeralds: i16,
-    timestamp: i32,
-    ids: HashMap<String, i8>,
-    data: Vec<i8>
-  }
+    #[derive(Debug, Clone, PartialEq)]
+    struct TestStruct {
+        name: String,
+        health: i8,
+        food: f32,
+        emeralds: i16,
+        timestamp: i32,
+        ids: HashMap<String, i8>,
+        data: Vec<i8>
+    }
 
-  impl NbtFmt for TestStruct {
-    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
+    impl NbtFmt for TestStruct {
+        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write {
 
             try!(self.name.to_nbt(dst, "name"));
@@ -610,18 +611,66 @@ fn serialize_basic_types() {
 
             close_nbt(dst)
         }
-  }
 
-  let test = TestStruct {
-    name: "Herobrine".to_string(),
-    health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774,
-    ids: HashMap::new(), data: vec![1, 2, 3]
-  };
+        fn read_bare_nbt<R>(src: &mut R) -> Result<TestStruct>
+            where R: io::Read
+        {
+            let mut name: String = Default::default();
+            let mut health: i8 = Default::default();
+            let mut food: f32 = Default::default();
+            let mut emeralds: i16 = Default::default();
+            let mut timestamp: i32 = Default::default();
+            let mut ids: HashMap<String, i8> = Default::default();
+            let mut data: Vec<i8> = Default::default();
 
-  let mut dst = Vec::new();
-  to_writer(&mut dst, test).unwrap();
+            loop {
+                let (t, n) = try!(emit_next_header(src));
 
-  let bytes = [
+                if t == 0x00 { break; } // i.e. Tag_End
+
+                match &n[..] {
+                    "name" => {
+                        name = try!(String::read_bare_nbt(src));
+                    },
+                    "health" => {
+                        health = try!(i8::read_bare_nbt(src));
+                    },
+                    "food" => {
+                        food = try!(f32::read_bare_nbt(src));
+                    },
+                    "emeralds" => {
+                        emeralds = try!(i16::read_bare_nbt(src));
+                    },
+                    "timestamp" => {
+                        timestamp = try!(i32::read_bare_nbt(src));
+                    },
+                    "ids" => {
+                        ids = try!(HashMap::<String, i8>::read_bare_nbt(src));
+                    },
+                    "data" => {
+                        data = try!(Vec::<i8>::read_bare_nbt(src));
+                    },
+                    e => { return Err(Error::UnexpectedField(e.to_string())); }
+                };
+            }
+
+            Ok(TestStruct {
+                name: name, health: health, food: food, emeralds: emeralds,
+                timestamp: timestamp, ids: ids, data: data
+            })
+        }
+    }
+
+    let test = TestStruct {
+        name: "Herobrine".to_string(),
+        health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774,
+        ids: HashMap::new(), data: vec![1, 2, 3]
+    };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &test).unwrap();
+
+    let bytes = vec![
         0x0a,
             0x00, 0x00,
             0x08,
@@ -660,4 +709,8 @@ fn serialize_basic_types() {
     ];
 
     assert_eq!(&bytes[..], &dst[..]);
+
+    let test_in: TestStruct = from_reader(&mut io::Cursor::new(bytes.clone())).unwrap();
+
+    assert_eq!(test, test_in);
 }
