@@ -278,6 +278,7 @@ fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -
             let mut stmts = Vec::with_capacity(def.fields.len() + 2);
             let mut arms = Vec::with_capacity(def.fields.len());
             let mut field_imms = Vec::with_capacity(def.fields.len());
+            let mut field_tuples = Vec::with_capacity(def.fields.len());
 
             for (i, field) in def.fields.iter().enumerate() {
                 let (name, id) = match field.node.kind {
@@ -286,7 +287,6 @@ fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -
                         (intern_and_get_ident(&format!("field{}", i)), None),
                     ast::StructFieldKind::NamedField(id, _) => {
                         // Assume we're working with a normal struct.
-                        // FIXME: Handle #[nbt_field].
                         (get_ident(id), Some(id))
                     },
                 };
@@ -305,7 +305,21 @@ fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -
 
                 // Create a string literal expression for the field's
                 // identifier.
-                let name_pat = cx.pat_lit(field.span, cx.expr_str(field.span, name.clone()));
+                let mut name_pat = cx.pat_lit(field.span, cx.expr_str(field.span, name.clone()));
+
+                // Optionally change name_pat for the field when the
+                // #[nbt_field = "fieldX"] attribute is present on the item.
+                for ref attr in field.node.attrs.iter() {
+                    if attr.check_name("nbt_field") {
+                        if let Some(ref s) = attr.value_str() {
+                            name_pat = cx.pat_lit(field.span, cx.expr_str(field.span, s.clone()));
+                        } else {
+                            cx.span_err(field.span, "`#[nbt_field]` requires a &str value.");
+                            return cx.expr_fail(trait_span, InternedString::new(""));
+                        }
+                        break;
+                    }
+                }
 
                 let read_bare_nbt_path = pathexpr!(cx, field.span, nbt::serialize::read_bare_nbt);
 
@@ -327,8 +341,11 @@ fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -
 
                 stmts.push(stmt);
                 arms.push(arm);
+
                 if let Some(i) = id {
                     field_imms.push(cx.field_imm(field.span, i, name_expr))
+                } else {
+                    field_tuples.push(name_expr)
                 }
             }
 
@@ -360,8 +377,10 @@ fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -
 
             let struct_expr = if !field_imms.is_empty() {
                 cx.expr_ok(trait_span, cx.expr_struct_ident(trait_span, substr.type_ident, field_imms))
+            } else if !field_tuples.is_empty() {
+                cx.expr_ok(trait_span, cx.expr_call_ident(trait_span, substr.type_ident, field_tuples))
             } else {
-                quote_expr!(cx, Err(::nbt::Error::NoRootCompound))
+                unreachable!()
             };
 
             let blk = cx.block(trait_span, stmts, Some(struct_expr));
