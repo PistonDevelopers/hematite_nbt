@@ -89,10 +89,15 @@ pub fn expand_derive_nbtfmt(cx: &mut ExtCtxt, span: Span, meta_item: &MetaItem,
                             item: &Annotatable,
                             push: &mut FnMut(Annotatable))
 {
-    // First, check that we're deriving for a struct.
+    // First, check that we're deriving for a non-unit struct.
     if let &Annotatable::Item(ref it) = item {
         match it.node {
-            ast::Item_::ItemStruct(_, _) => (), // Allow structs only.
+            ast::Item_::ItemStruct(ref def, _) => {
+                if def.fields.is_empty() {
+                    cx.span_err(span, "`NbtFmt` has no meaning for unit structs.");
+                    return;
+                }
+            },
             ast::Item_::ItemEnum(_, _) => {
                 cx.span_err(span, "`NbtFmt` cannot yet be derived for enums.");
                 return;
@@ -199,14 +204,7 @@ fn cs_to_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> 
     };
 
     match *substr.fields {
-        Struct(ref fields) => {   
-            // Unit structs are kind of irrelevant for NBT, so throw an error
-            // if someone tries to derive(NbtFmt) over one.
-            if fields.is_empty() {
-                cx.span_err(trait_span, "`NbtFmt` has no meaning for unit structs.");
-                return cx.expr_fail(trait_span, InternedString::new(""));
-            }
-
+        Struct(ref fields) => {
             let mut stmts = Vec::with_capacity(fields.len());
 
             // Handle tuple structs, i.e. `struct Test(i8, i8, String);`
