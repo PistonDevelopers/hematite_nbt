@@ -1,6 +1,6 @@
 //! MC Named Binary Tag type.
 
-#![feature(core)]
+#![feature(iter_arith)]
 #![cfg_attr(test, feature(test))]
 
 extern crate byteorder;
