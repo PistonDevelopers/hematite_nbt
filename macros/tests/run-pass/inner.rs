@@ -3,7 +3,7 @@
 
 extern crate nbt;
 
-#[derive(NbtFmt)]
+#[derive(Default, NbtFmt)]
 struct Inner {
     name: String
 }

@@ -3,6 +3,7 @@
 
 extern crate nbt;
 
+#[derive(Default)]
 struct Inner {
     name: String
 }
@@ -13,6 +14,8 @@ struct Outer {
     inner: Inner
  //~^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
  //~^^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
+ //~^^^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
+ //~^^^^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
 }
 
 fn main() { }

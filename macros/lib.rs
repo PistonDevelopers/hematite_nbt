@@ -41,7 +41,7 @@
 //! Which will work so long as the fields of the struct have `NbtFmt`
 //! implementations of their own.
 
-#![feature(plugin_registrar, rustc_private, box_syntax)]
+#![feature(plugin_registrar, rustc_private, box_syntax, quote)]
 
 extern crate rustc;
 extern crate syntax;
@@ -78,7 +78,7 @@ macro_rules! path {
 }
 
 macro_rules! pathexpr {
-    ($cx:ident, $span:ident, $($x:ident)::+) => (
+    ($cx:ident, $span:expr, $($x:ident)::+) => (
         $cx.expr_path($cx.path_global($span,
             vec![ $( $cx.ident_of( stringify!($x) ) ),+ ]))
     )
@@ -264,8 +264,109 @@ fn cs_to_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> 
 }
 
 fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Expr> {
+    // Retrieve the argument passed to the read_bare_nbt function, i.e. the
+    // `src: &mut __R` bit. Since the method is already defined, there's no
+    // reason for this to fail, so we call `cx.span_bug` indicating a compiler
+    // error.
+    let src_expr = match (substr.nonself_args.len(), substr.nonself_args.get(0)) {
+        (1, Some(src)) => src,
+        _ => cx.span_bug(trait_span, "incorrect number of arguments in `derive(NbtFmt)`")
+    };
+
     match *substr.fields {
-        StaticStruct(_, _) => cx.expr_unreachable(trait_span),
+        StaticStruct(ref def, _) => {
+            let mut stmts = Vec::with_capacity(def.fields.len() + 2);
+            let mut arms = Vec::with_capacity(def.fields.len());
+            let mut field_imms = Vec::with_capacity(def.fields.len());
+
+            for (i, field) in def.fields.iter().enumerate() {
+                let (name, id) = match field.node.kind {
+                    ast::StructFieldKind::UnnamedField(_) =>
+                        // Assume we're working with a tuple struct.
+                        (intern_and_get_ident(&format!("field{}", i)), None),
+                    ast::StructFieldKind::NamedField(id, _) => {
+                        // Assume we're working with a normal struct.
+                        // FIXME: Handle #[nbt_field].
+                        (get_ident(id), Some(id))
+                    },
+                };
+
+                let name_alias = intern_and_get_ident(&format!("__{}", &name));
+                let name_ident = cx.ident_of(&name_alias);
+                let name_expr = cx.expr_ident(field.span, name_ident.clone());
+
+                // Create the `Default::default()` call.
+                let default_call = quote_expr!(cx, ::std::default::Default::default());
+
+                // Generate a `let mut x: Type = Default::default();`
+                // statement for this field.
+                let stmt = cx.stmt_let_typed(field.span, true, name_ident.clone(),
+                                             field.node.ty.clone(), default_call);
+
+                // Create a string literal expression for the field's
+                // identifier.
+                let name_pat = cx.pat_lit(field.span, cx.expr_str(field.span, name.clone()));
+
+                let read_bare_nbt_path = pathexpr!(cx, field.span, nbt::serialize::read_bare_nbt);
+
+                // Create a call expression, using the function path and the
+                // `src` argument.
+                let read_call = cx.expr_call(field.span, read_bare_nbt_path,
+                                            vec![src_expr.clone()]);
+                let try_call = cx.expr_try(field.span, read_call);
+
+                // Create the `name = try!(Type::read_bare_nbt(src))` expression.
+                let name_assign = match quote_stmt!(cx, $name_expr = $try_call) {
+                    Some(e) => e,
+                    None    => cx.span_bug(field.span, "internal error in `#[derive(NbtFmt)]")
+                };
+
+                // Return this as a match arm.
+                let arm_block = cx.block_all(field.span, vec![name_assign], None);
+                let arm = cx.arm(field.span, vec![name_pat], cx.expr_block(arm_block));
+
+                stmts.push(stmt);
+                arms.push(arm);
+                if let Some(i) = id {
+                    field_imms.push(cx.field_imm(field.span, i, name_expr))
+                }
+            }
+
+            // Construct the match statement, including the last (error) arm.
+            let last_arm = quote_arm!(cx, __e => {
+                return ::std::result::Result::Err(::nbt::Error::UnexpectedField(__e.to_string()))
+            });
+            arms.push(last_arm);
+            let match_arg = quote_expr!(cx, &__n_0[..]);
+            let match_stmt = cx.stmt_expr(cx.expr_match(trait_span, match_arg, arms));
+
+            // Create call to `emit_next_header`.
+            let emit_path = pathexpr!(cx, trait_span, nbt::serialize::emit_next_header);
+            let emit_call = cx.expr_call(trait_span, emit_path, vec![src_expr.clone()]);
+            let try_emit_call = cx.expr_try(trait_span, emit_call);
+
+            // Construct the loop through possible field names, including the
+            // check for the end tag.
+            let loop_stmt = match quote_stmt!(cx, loop {
+                let (__t_0, __n_0) = $try_emit_call ;
+                if __t_0 == 0x00 { break; }
+
+                $match_stmt})
+            {
+                Some(s) => s,
+                None => cx.span_bug(trait_span, "internal error in `#[derive(NbtFmt)]")
+            };
+            stmts.push(loop_stmt);
+
+            let struct_expr = if !field_imms.is_empty() {
+                cx.expr_ok(trait_span, cx.expr_struct_ident(trait_span, substr.type_ident, field_imms))
+            } else {
+                quote_expr!(cx, Err(::nbt::Error::NoRootCompound))
+            };
+
+            let blk = cx.block(trait_span, stmts, Some(struct_expr));
+            cx.expr_block(blk)
+        },
         _ => cx.span_bug(trait_span, "impossible substructure in `#[derive(NbtFmt)]`")
     }
 }
