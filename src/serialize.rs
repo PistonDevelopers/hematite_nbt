@@ -161,6 +161,13 @@ pub fn from_reader<R, T>(src: &mut R) -> Result<T>
     Ok(rval)
 }
 
+pub fn read_bare_nbt<R, T>(src: &mut R) -> Result<T>
+    where R: io::Read,
+          T: NbtFmt<Into=T>
+{
+    (T::read_bare_nbt(src)).map_err(From::from)
+}
+
 macro_rules! nbtfmt_value {
   ($T:ty, $read_method:ident, $write_method:ident, $tag:expr) => (
     impl NbtFmt for $T {
@@ -323,7 +330,7 @@ impl<S, T> NbtFmt for HashMap<S, T> where S: AsRef<str> + Hash + Eq, T: NbtFmt {
             // Check for key collisions.
             match rval.insert(key.clone(), value) {
                 None    => (),
-                Some(k) => return Err(Error::UnexpectedField(key)),
+                Some(_) => return Err(Error::UnexpectedField(key)),
             };
         }
 
@@ -363,7 +370,7 @@ impl<S, T> NbtFmt for BTreeMap<S, T> where S: AsRef<str>, T: NbtFmt {
             // Check for key collisions.
             match rval.insert(key.clone(), value) {
                 None    => (),
-                Some(k) => return Err(Error::UnexpectedField(key)),
+                Some(_) => return Err(Error::UnexpectedField(key)),
             };
         }
 
@@ -630,25 +637,25 @@ fn serialize_basic_types() {
 
                 match &n[..] {
                     "name" => {
-                        name = try!(String::read_bare_nbt(src));
+                        name = try!(read_bare_nbt(src));
                     },
                     "health" => {
-                        health = try!(i8::read_bare_nbt(src));
+                        health = try!(read_bare_nbt(src));
                     },
                     "food" => {
-                        food = try!(f32::read_bare_nbt(src));
+                        food = try!(read_bare_nbt(src));
                     },
                     "emeralds" => {
-                        emeralds = try!(i16::read_bare_nbt(src));
+                        emeralds = try!(read_bare_nbt(src));
                     },
                     "timestamp" => {
-                        timestamp = try!(i32::read_bare_nbt(src));
+                        timestamp = try!(read_bare_nbt(src));
                     },
                     "ids" => {
-                        ids = try!(HashMap::<String, i8>::read_bare_nbt(src));
+                        ids = try!(read_bare_nbt(src));
                     },
                     "data" => {
-                        data = try!(Vec::<i8>::read_bare_nbt(src));
+                        data = try!(read_bare_nbt(src));
                     },
                     e => { return Err(Error::UnexpectedField(e.to_string())); }
                 };
