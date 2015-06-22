@@ -4,5 +4,7 @@
 #[derive(NbtFmt)]
 struct Simple {
     #[nbt_field]
-    names: String, //~ ERROR `#[nbt_field]` requires a &str value.
+    names: String,
+  //~^ ERROR `#[nbt_field]` requires a &str value.
+  //~^^ ERROR `#[nbt_field]` requires a &str value.
 }

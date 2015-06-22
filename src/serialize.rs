@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::io;
 
-use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
+use byteorder::{ByteOrder, BigEndian, ReadBytesExt, WriteBytesExt};
 
 use error::{Error, Result};
 
@@ -27,7 +27,7 @@ use error::{Error, Result};
 /// given that types will likely advertise themselves as Compound-like. For
 /// example:
 ///
-/// ```rust
+/// ```ignore
 /// extern crate nbt;
 ///
 /// use nbt::serialize::{NbtFmt, to_writer, close_nbt};
@@ -57,11 +57,21 @@ use error::{Error, Result};
 /// ```
 ///
 pub trait NbtFmt {
+    type Into: Sized = Self;
 
     /// Convert this type to NBT format using the specified `io::Write`
     /// destination, but does not serialize its identifying NBT tag or name.
     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write;
+
+    /// Reads from the specified `io::Read` source bytes that can be coverted
+    /// into an instance of this type.
+    #[allow(unused_variables)]
+    fn read_bare_nbt<R>(src: &mut R) -> Result<Self::Into>
+       where R: io::Read
+    {
+        unimplemented!()
+    }
 
     /// Convert this type to NBT format using the specified `io::Write`
     /// destination, incuding its tag and a given name.
@@ -97,11 +107,29 @@ pub fn close_nbt<W>(dst: &mut W) -> Result<()>
     dst.write_u8(0x00).map_err(From::from)
 }
 
+/// Extracts the next header (tag and name) from an NBT format source.
+///
+/// This function will also return the `TAG_End` byte and an empty name if it
+/// encounters it.
+pub fn emit_next_header<R>(src: &mut R) -> Result<(u8, String)>
+    where R: io::Read
+{
+    let tag  = try!(src.read_u8());
+
+    match tag {
+        0x00 => { Ok((tag, "".to_string())) },
+        _    => {
+            let name = try!(read_bare_string(src));
+            Ok((tag, name))
+        },
+    }
+}
+
 /// Serializes an object into NBT format at a given destination.
 ///
 /// This function will try to ensure that the output is always a valid NBT
 /// file, i.e. that it has a top-level Compound.
-pub fn to_writer<W, T>(dst: &mut W, obj: T) -> Result<()>
+pub fn to_writer<W, T>(dst: &mut W, obj: &T) -> Result<()>
     where W: io::Write,
           T: NbtFmt
 {
@@ -112,14 +140,49 @@ pub fn to_writer<W, T>(dst: &mut W, obj: T) -> Result<()>
     }
 }
 
+/// Deserializes an object in NBT format from a given source.
+pub fn from_reader<R, T>(src: &mut R) -> Result<T>
+    where R: io::Read,
+          T: NbtFmt<Into=T>
+{
+    if T::is_bare() {
+        // Valid NBT files do not contain bare types.
+        return Err(Error::NoRootCompound);
+    }
+
+    let next_tag  = try!(src.read_u8());
+    if next_tag != T::tag() {
+        return Err(Error::TagMismatch(next_tag, T::tag()));
+    }
+
+    let _ = try!(read_bare_string(src));
+    let rval = try!(T::read_bare_nbt(src));
+
+    Ok(rval)
+}
+
+pub fn read_bare_nbt<R, T>(src: &mut R) -> Result<T>
+    where R: io::Read,
+          T: NbtFmt<Into=T>
+{
+    (T::read_bare_nbt(src)).map_err(From::from)
+}
+
 macro_rules! nbtfmt_value {
-  ($T:ty, $method:ident, $tag:expr) => (
+  ($T:ty, $read_method:ident, $write_method:ident, $tag:expr) => (
     impl NbtFmt for $T {
         #[inline]
         fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
         {
-            $method(dst, *self)
+            $write_method(dst, *self)
+        }
+
+        #[inline]
+        fn read_bare_nbt<R>(src: &mut R) -> Result<$T>
+           where R: io::Read
+        {
+            $read_method(src)
         }
 
         #[inline] fn tag() -> u8 { $tag }
@@ -129,13 +192,22 @@ macro_rules! nbtfmt_value {
 }
 
 macro_rules! nbtfmt_ptr {
-  ($T:ty, $method:ident, $tag:expr) => (
+  ($T:ty, $Into:ty, $read_method:ident, $write_method:ident, $tag:expr) => (
     impl NbtFmt for $T {
+        type Into = $Into;
+
         #[inline]
         fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
         {
-            $method(dst, self)
+            $write_method(dst, self)
+        }
+
+        #[inline]
+        fn read_bare_nbt<R>(src: &mut R) -> Result<$Into>
+           where R: io::Read
+        {
+            $read_method(src)
         }
 
         #[inline] fn tag() -> u8 { $tag }
@@ -145,13 +217,20 @@ macro_rules! nbtfmt_ptr {
 }
 
 macro_rules! nbtfmt_slice {
-  ($T:ty, $method:ident, $tag:expr) => (
+  ($T:ty, $read_method:ident, $write_method:ident, $tag:expr) => (
     impl NbtFmt for $T {
         #[inline]
         fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
         {
-            $method(dst, &self[..])
+            $write_method(dst, &self[..])
+        }
+
+        #[inline]
+        fn read_bare_nbt<R>(src: &mut R) -> Result<$T>
+           where R: io::Read
+        {
+            $read_method(src)
         }
 
         #[inline] fn tag() -> u8 { $tag }
@@ -160,20 +239,20 @@ macro_rules! nbtfmt_slice {
   )
 }
 
-nbtfmt_value!(i8, write_bare_byte, 0x01);
-nbtfmt_value!(i16, write_bare_short, 0x02);
-nbtfmt_value!(i32, write_bare_int, 0x03);
-nbtfmt_value!(i64, write_bare_long, 0x04);
-nbtfmt_value!(f32, write_bare_float, 0x05);
-nbtfmt_value!(f64, write_bare_double, 0x06);
-nbtfmt_ptr!(str, write_bare_string, 0x08);
-nbtfmt_slice!(String, write_bare_string, 0x08);
+nbtfmt_value!(i8, read_bare_byte, write_bare_byte, 0x01);
+nbtfmt_value!(i16, read_bare_short, write_bare_short, 0x02);
+nbtfmt_value!(i32, read_bare_int, write_bare_int, 0x03);
+nbtfmt_value!(i64, read_bare_long, write_bare_long, 0x04);
+nbtfmt_value!(f32, read_bare_float, write_bare_float, 0x05);
+nbtfmt_value!(f64, read_bare_double, write_bare_double, 0x06);
+nbtfmt_ptr!(str, String, read_bare_string, write_bare_string, 0x08);
+nbtfmt_slice!(String, read_bare_string, write_bare_string, 0x08);
 
 // For now, to handle conflicting implementations, use slices to indicate when
 // byte and int arrays should be preferred to lists.
 
-nbtfmt_ptr!([i8], write_bare_byte_array, 0x07);
-nbtfmt_ptr!([i32], write_bare_int_array, 0x0b);
+nbtfmt_ptr!([i8], Vec<i8>, read_bare_byte_array, write_bare_byte_array, 0x07);
+nbtfmt_ptr!([i32], Vec<i32>, read_bare_int_array, write_bare_int_array, 0x0b);
 
 // FIXME: Remove this workaround and enable some way of uncommenting the lines
 // that follow.
@@ -193,12 +272,29 @@ nbtfmt_ptr!([i32], write_bare_int_array, 0x0b);
 
 // This leaves Vec<T> alone for lists (which kind of makes sense).
 
-impl<T> NbtFmt for Vec<T> where T: NbtFmt {
+impl<T> NbtFmt for Vec<T> where T: NbtFmt<Into=T> {
+    type Into = Vec<T>;
+
     #[inline]
     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write
     {
-           write_bare_list(dst, self.iter())
+        write_bare_list(dst, self.iter())
+    }
+
+    #[inline]
+    fn read_bare_nbt<R>(src: &mut R) -> Result<Vec<T>>
+       where R: io::Read
+    {
+        let tag = try!(src.read_u8());
+        if tag != T::tag() {
+            // FIXME: New error needed for this.
+            return Err(Error::IncompleteNbtValue);
+        }
+
+        // Err(Error::IncompleteNbtValue)
+
+        read_bare_list(src)
     }
 
     #[inline] fn tag() -> u8 { 0x09 }
@@ -206,6 +302,8 @@ impl<T> NbtFmt for Vec<T> where T: NbtFmt {
 }
 
 impl<S, T> NbtFmt for HashMap<S, T> where S: AsRef<str> + Hash + Eq, T: NbtFmt {
+    type Into = HashMap<String, T::Into>;
+
     #[inline]
     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write
@@ -213,16 +311,70 @@ impl<S, T> NbtFmt for HashMap<S, T> where S: AsRef<str> + Hash + Eq, T: NbtFmt {
         write_bare_compound(dst, self.iter())
     }
 
+    #[inline]
+    fn read_bare_nbt<R>(src: &mut R) -> Result<Self::Into>
+       where R: io::Read
+    {
+        let mut rval = HashMap::new();
+
+        loop {
+            let (tag, key) = try!(emit_next_header(src));
+
+            if tag == 0x00 { break; } // i.e. Tag_End
+            if tag != T::tag() {
+                return Err(Error::TagMismatch(T::tag(), tag));
+            }
+
+            let value = try!(T::read_bare_nbt(src));
+
+            // Check for key collisions.
+            match rval.insert(key.clone(), value) {
+                None    => (),
+                Some(_) => return Err(Error::UnexpectedField(key)),
+            };
+        }
+
+        Ok(rval)
+    }
+
     #[inline] fn tag() -> u8 { 0x0a }
     #[inline] fn is_bare() -> bool { false }
 }
 
 impl<S, T> NbtFmt for BTreeMap<S, T> where S: AsRef<str>, T: NbtFmt {
+    type Into = BTreeMap<String, T::Into>;
+
     #[inline]
     fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
        where W: io::Write
     {
         write_bare_compound(dst, self.iter())
+    }
+
+    #[inline]
+    fn read_bare_nbt<R>(src: &mut R) -> Result<Self::Into>
+       where R: io::Read
+    {
+        let mut rval = BTreeMap::new();
+
+        loop {
+            let (tag, key) = try!(emit_next_header(src));
+
+            if tag == 0x00 { break; } // i.e. Tag_End
+            if tag != T::tag() {
+                return Err(Error::TagMismatch(T::tag(), tag));
+            }
+
+            let value = try!(T::read_bare_nbt(src));
+
+            // Check for key collisions.
+            match rval.insert(key.clone(), value) {
+                None    => (),
+                Some(_) => return Err(Error::UnexpectedField(key)),
+            };
+        }
+
+        Ok(rval)
     }
 
     #[inline] fn tag() -> u8 { 0x0a }
@@ -335,20 +487,125 @@ fn write_bare_compound<'a, W, I, T, S>(dst: &mut W, values: I) -> Result<()>
     close_nbt(dst)
 }
 
+#[inline]
+fn read_bare_byte<R>(src: &mut R) -> Result<i8>
+    where R: io::Read
+{
+    src.read_i8().map_err(From::from)
+}
+
+#[inline]
+fn read_bare_short<R>(src: &mut R) -> Result<i16>
+    where R: io::Read
+{
+    src.read_i16::<BigEndian>().map_err(From::from)
+}
+
+#[inline]
+fn read_bare_int<R>(src: &mut R) -> Result<i32>
+    where R: io::Read
+{
+    src.read_i32::<BigEndian>().map_err(From::from)
+}
+
+#[inline]
+fn read_bare_long<R>(src: &mut R) -> Result<i64>
+    where R: io::Read
+{
+    src.read_i64::<BigEndian>().map_err(From::from)
+}
+
+#[inline]
+fn read_bare_float<R>(src: &mut R) -> Result<f32>
+    where R: io::Read
+{
+    src.read_f32::<BigEndian>().map_err(From::from)
+}
+
+#[inline]
+fn read_bare_double<R>(src: &mut R) -> Result<f64>
+    where R: io::Read
+{
+    src.read_f64::<BigEndian>().map_err(From::from)
+}
+
+#[inline]
+fn read_bare_byte_array<R>(src: &mut R) -> Result<Vec<i8>>
+    where R: io::Read
+{
+    // FIXME: Is there a way to return [u8; len]?
+    let len = try!(src.read_i32::<BigEndian>()) as usize;
+    let mut buf = Vec::with_capacity(len);
+    // FIXME: Test performance vs transmute.
+    for _ in 0..len {
+        buf.push(try!(src.read_i8()));
+    }
+    Ok(buf)
+}
+
+#[inline]
+fn read_bare_int_array<R>(src: &mut R) -> Result<Vec<i32>>
+    where R: io::Read
+{
+    // FIXME: Is there a way to return [i32; len]?
+    let len = try!(src.read_i32::<BigEndian>()) as usize;
+    let mut buf = Vec::with_capacity(len);
+    // FIXME: Test performance vs transmute.
+    for _ in 0..len {
+        buf.push(try!(src.read_i32::<BigEndian>()));
+    }
+    Ok(buf)
+}
+
+#[inline]
+fn read_bare_string<R>(src: &mut R) -> Result<String>
+    where R: io::Read
+{
+    let len = try!(src.read_u16::<BigEndian>()) as usize;
+
+    if len == 0 { return Ok("".to_string()); }
+
+    let mut bytes = vec![0; len];
+    let mut n_read = 0usize;
+    while n_read < bytes.len() {
+        match try!(src.read(&mut bytes[n_read..])) {
+            0 => return Err(Error::IncompleteNbtValue),
+            n => n_read += n
+        }
+    }
+
+    String::from_utf8(bytes).map_err(From::from)
+}
+
+#[inline]
+fn read_bare_list<R, T>(src: &mut R) -> Result<Vec<T>>
+    where R: io::Read,
+          T: NbtFmt<Into=T>
+{
+    // Note: This assumes the first (type) byte has already been read.
+    let len = try!(src.read_i32::<BigEndian>()) as usize;
+    let mut buf = Vec::with_capacity(len);
+    for _ in 0..len {
+        buf.push(try!(T::read_bare_nbt(src)));
+    }
+    Ok(buf)
+}
+
 #[test]
 fn serialize_basic_types() {
-  struct TestStruct {
-    name: String,
-    health: i8,
-    food: f32,
-    emeralds: i16,
-    timestamp: i32,
-    ids: HashMap<String, i8>,
-    data: Vec<i8>
-  }
+    #[derive(Debug, Clone, PartialEq)]
+    struct TestStruct {
+        name: String,
+        health: i8,
+        food: f32,
+        emeralds: i16,
+        timestamp: i32,
+        ids: HashMap<String, i8>,
+        data: Vec<i8>
+    }
 
-  impl NbtFmt for TestStruct {
-    fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
+    impl NbtFmt for TestStruct {
+        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write {
 
             try!(self.name.to_nbt(dst, "name"));
@@ -361,18 +618,66 @@ fn serialize_basic_types() {
 
             close_nbt(dst)
         }
-  }
 
-  let test = TestStruct {
-    name: "Herobrine".to_string(),
-    health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774,
-    ids: HashMap::new(), data: vec![1, 2, 3]
-  };
+        fn read_bare_nbt<R>(src: &mut R) -> Result<TestStruct>
+            where R: io::Read
+        {
+            let mut name: String = Default::default();
+            let mut health: i8 = Default::default();
+            let mut food: f32 = Default::default();
+            let mut emeralds: i16 = Default::default();
+            let mut timestamp: i32 = Default::default();
+            let mut ids: HashMap<String, i8> = Default::default();
+            let mut data: Vec<i8> = Default::default();
 
-  let mut dst = Vec::new();
-  to_writer(&mut dst, test).unwrap();
+            loop {
+                let (t, n) = try!(emit_next_header(src));
 
-  let bytes = [
+                if t == 0x00 { break; } // i.e. Tag_End
+
+                match &n[..] {
+                    "name" => {
+                        name = try!(read_bare_nbt(src));
+                    },
+                    "health" => {
+                        health = try!(read_bare_nbt(src));
+                    },
+                    "food" => {
+                        food = try!(read_bare_nbt(src));
+                    },
+                    "emeralds" => {
+                        emeralds = try!(read_bare_nbt(src));
+                    },
+                    "timestamp" => {
+                        timestamp = try!(read_bare_nbt(src));
+                    },
+                    "ids" => {
+                        ids = try!(read_bare_nbt(src));
+                    },
+                    "data" => {
+                        data = try!(read_bare_nbt(src));
+                    },
+                    e => { return Err(Error::UnexpectedField(e.to_string())); }
+                };
+            }
+
+            Ok(TestStruct {
+                name: name, health: health, food: food, emeralds: emeralds,
+                timestamp: timestamp, ids: ids, data: data
+            })
+        }
+    }
+
+    let test = TestStruct {
+        name: "Herobrine".to_string(),
+        health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774,
+        ids: HashMap::new(), data: vec![1, 2, 3]
+    };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &test).unwrap();
+
+    let bytes = vec![
         0x0a,
             0x00, 0x00,
             0x08,
@@ -411,4 +716,8 @@ fn serialize_basic_types() {
     ];
 
     assert_eq!(&bytes[..], &dst[..]);
+
+    let test_in: TestStruct = from_reader(&mut io::Cursor::new(bytes.clone())).unwrap();
+
+    assert_eq!(test, test_in);
 }

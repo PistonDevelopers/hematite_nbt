@@ -6,13 +6,12 @@ extern crate test;
 
 use nbt::serialize;
 
-#[derive(NbtFmt)]
+#[derive(NbtFmt, PartialEq, Debug)]
 struct TestStruct {
     name: String,
     health: i8,
     food: f32,
-    #[nbt_field = "emeralds"]
-    ems: i16,
+    emeralds: i16,
     timestamp: i32
 }
 
@@ -20,13 +19,10 @@ struct TestStruct {
 fn nbt_test_struct_serialize() {
     let test = TestStruct {
         name: "Herobrine".to_string(),
-        health: 100, food: 20.0, ems: 12345, timestamp: 1424778774
+        health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774
     };
 
-    let mut dst = Vec::new();
-    serialize::to_writer(&mut dst, test).unwrap();
-
-    let bytes = [
+    let bytes = vec![
         0x0a,
             0x00, 0x00,
             0x08,
@@ -53,5 +49,13 @@ fn nbt_test_struct_serialize() {
         0x00
     ];
 
+
+    let mut dst = Vec::new();
+    serialize::to_writer(&mut dst, &test).unwrap();
+
+    let mut src = std::io::Cursor::new(&bytes[..]);
+    let result: TestStruct = serialize::from_reader(&mut src).unwrap();
+
     assert_eq!(&bytes[..], &dst[..]);
+    assert_eq!(&test, &result);
 }
