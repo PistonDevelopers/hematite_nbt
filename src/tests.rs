@@ -5,8 +5,11 @@ use std::fs::File;
 use test::Bencher;
 
 use blob::NbtBlob;
-use error::Error;
+use error::{Error, Result};
 use value::NbtValue;
+use serialize::{
+    NbtFmt, emit_next_header, from_reader, to_writer, close_nbt, read_bare_nbt
+};
 
 #[test]
 fn nbt_nonempty() {
@@ -250,4 +253,135 @@ fn nbt_bench_smallwrite(b: &mut Bencher) {
     b.iter(|| {
         nbt.write(&mut io::sink())
     });
+}
+
+#[test]
+fn serialize_basic_types() {
+    #[derive(Debug, Clone, PartialEq)]
+    struct TestStruct {
+        name: String,
+        health: i8,
+        food: f32,
+        emeralds: i16,
+        timestamp: i32,
+        ids: HashMap<String, i8>,
+        data: Vec<i8>
+    }
+
+    impl NbtFmt for TestStruct {
+        fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
+           where W: io::Write {
+
+            try!(self.name.to_nbt(dst, "name"));
+            try!(self.health.to_nbt(dst, "health"));
+            try!(self.food.to_nbt(dst, "food"));
+            try!(self.emeralds.to_nbt(dst, "emeralds"));
+            try!(self.timestamp.to_nbt(dst, "timestamp"));
+            try!(self.ids.to_nbt(dst, "ids"));
+            try!(self.data.to_nbt(dst, "data"));
+
+            close_nbt(dst)
+        }
+
+        fn read_bare_nbt<R>(src: &mut R) -> Result<TestStruct>
+            where R: io::Read
+        {
+            let mut name: String = Default::default();
+            let mut health: i8 = Default::default();
+            let mut food: f32 = Default::default();
+            let mut emeralds: i16 = Default::default();
+            let mut timestamp: i32 = Default::default();
+            let mut ids: HashMap<String, i8> = Default::default();
+            let mut data: Vec<i8> = Default::default();
+
+            loop {
+                let (t, n) = try!(emit_next_header(src));
+
+                if t == 0x00 { break; } // i.e. Tag_End
+
+                match &n[..] {
+                    "name" => {
+                        name = try!(read_bare_nbt(src));
+                    },
+                    "health" => {
+                        health = try!(read_bare_nbt(src));
+                    },
+                    "food" => {
+                        food = try!(read_bare_nbt(src));
+                    },
+                    "emeralds" => {
+                        emeralds = try!(read_bare_nbt(src));
+                    },
+                    "timestamp" => {
+                        timestamp = try!(read_bare_nbt(src));
+                    },
+                    "ids" => {
+                        ids = try!(read_bare_nbt(src));
+                    },
+                    "data" => {
+                        data = try!(read_bare_nbt(src));
+                    },
+                    e => { return Err(Error::UnexpectedField(e.to_string())); }
+                };
+            }
+
+            Ok(TestStruct {
+                name: name, health: health, food: food, emeralds: emeralds,
+                timestamp: timestamp, ids: ids, data: data
+            })
+        }
+    }
+
+    let test = TestStruct {
+        name: "Herobrine".to_string(),
+        health: 100, food: 20.0, emeralds: 12345, timestamp: 1424778774,
+        ids: HashMap::new(), data: vec![1, 2, 3]
+    };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &test).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x08,
+                0x00, 0x04,
+                0x6e, 0x61, 0x6d, 0x65,
+                0x00, 0x09,
+                0x48, 0x65, 0x72, 0x6f, 0x62, 0x72, 0x69, 0x6e, 0x65,
+            0x01,
+                0x00, 0x06,
+                0x68, 0x65, 0x61, 0x6c, 0x74, 0x68,
+                0x64,
+            0x05,
+                0x00, 0x04,
+                0x66, 0x6f, 0x6f, 0x64,
+                0x41, 0xa0, 0x00, 0x00,
+            0x02,
+                0x00, 0x08,
+                0x65, 0x6d, 0x65, 0x72, 0x61, 0x6c, 0x64, 0x73,
+                0x30, 0x39,
+            0x03,
+                0x00, 0x09,
+                0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
+                0x54, 0xec, 0x66, 0x16,
+            0x0a,
+                0x00, 0x03,
+                0x69, 0x64, 0x73,
+                // No content.
+            0x00,
+            0x09,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x01, // List type.
+                0x00, 0x00, 0x00, 0x03, // Length.
+                0x01, 0x02, 0x03, // Content.
+        0x00
+    ];
+
+    assert_eq!(&bytes[..], &dst[..]);
+
+    let test_in: TestStruct = from_reader(&mut io::Cursor::new(bytes.clone())).unwrap();
+
+    assert_eq!(test, test_in);
 }
