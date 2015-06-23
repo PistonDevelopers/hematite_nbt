@@ -6,9 +6,9 @@ use byteorder::{ByteOrder, BigEndian, WriteBytesExt, ReadBytesExt};
 
 use error::{Error, Result};
 
-/// A value which can be represented in the Named Binary Tag (NBT) file format.
+/// Values which can be represented in the Named Binary Tag format.
 #[derive(Clone, Debug, PartialEq)]
-pub enum NbtValue {
+pub enum Value {
     Byte(i8),
     Short(i16),
     Int(i32),
@@ -17,74 +17,74 @@ pub enum NbtValue {
     Double(f64),
     ByteArray(Vec<i8>),
     String(String),
-    List(Vec<NbtValue>),
-    Compound(HashMap<String, NbtValue>),
+    List(Vec<Value>),
+    Compound(HashMap<String, Value>),
     IntArray(Vec<i32>),
 }
 
-impl NbtValue {
-    /// The type ID of this `NbtValue`, which is a single byte in the range
+impl Value {
+    /// The type ID of this `Value`, which is a single byte in the range
     /// `0x01` to `0x0b`.
     pub fn id(&self) -> u8 {
         match *self {
-            NbtValue::Byte(_)      => 0x01,
-            NbtValue::Short(_)     => 0x02,
-            NbtValue::Int(_)       => 0x03,
-            NbtValue::Long(_)      => 0x04,
-            NbtValue::Float(_)     => 0x05,
-            NbtValue::Double(_)    => 0x06,
-            NbtValue::ByteArray(_) => 0x07,
-            NbtValue::String(_)    => 0x08,
-            NbtValue::List(_)      => 0x09,
-            NbtValue::Compound(_)  => 0x0a,
-            NbtValue::IntArray(_)  => 0x0b
+            Value::Byte(_)      => 0x01,
+            Value::Short(_)     => 0x02,
+            Value::Int(_)       => 0x03,
+            Value::Long(_)      => 0x04,
+            Value::Float(_)     => 0x05,
+            Value::Double(_)    => 0x06,
+            Value::ByteArray(_) => 0x07,
+            Value::String(_)    => 0x08,
+            Value::List(_)      => 0x09,
+            Value::Compound(_)  => 0x0a,
+            Value::IntArray(_)  => 0x0b
         }
     }
 
     /// A string representation of this tag.
     fn tag_name(&self) -> &str {
         match *self {
-            NbtValue::Byte(_)      => "TAG_Byte",
-            NbtValue::Short(_)     => "TAG_Short",
-            NbtValue::Int(_)       => "TAG_Int",
-            NbtValue::Long(_)      => "TAG_Long",
-            NbtValue::Float(_)     => "TAG_Float",
-            NbtValue::Double(_)    => "TAG_Double",
-            NbtValue::ByteArray(_) => "TAG_ByteArray",
-            NbtValue::String(_)    => "TAG_String",
-            NbtValue::List(_)      => "TAG_List",
-            NbtValue::Compound(_)  => "TAG_Compound",
-            NbtValue::IntArray(_)  => "TAG_IntArray"
+            Value::Byte(_)      => "TAG_Byte",
+            Value::Short(_)     => "TAG_Short",
+            Value::Int(_)       => "TAG_Int",
+            Value::Long(_)      => "TAG_Long",
+            Value::Float(_)     => "TAG_Float",
+            Value::Double(_)    => "TAG_Double",
+            Value::ByteArray(_) => "TAG_ByteArray",
+            Value::String(_)    => "TAG_String",
+            Value::List(_)      => "TAG_List",
+            Value::Compound(_)  => "TAG_Compound",
+            Value::IntArray(_)  => "TAG_IntArray"
         }
     }
 
-    /// The length of the payload of this `NbtValue`, in bytes.
+    /// The length of the payload of this `Value`, in bytes.
     pub fn len(&self) -> usize {
         match *self {
-            NbtValue::Byte(_)            => 1,
-            NbtValue::Short(_)           => 2,
-            NbtValue::Int(_)             => 4,
-            NbtValue::Long(_)            => 8,
-            NbtValue::Float(_)           => 4,
-            NbtValue::Double(_)          => 8,
-            NbtValue::ByteArray(ref val) => 4 + val.len(), // size + bytes
-            NbtValue::String(ref val)    => 2 + val.len(), // size + bytes
-            NbtValue::List(ref vals)     => {
+            Value::Byte(_)            => 1,
+            Value::Short(_)           => 2,
+            Value::Int(_)             => 4,
+            Value::Long(_)            => 8,
+            Value::Float(_)           => 4,
+            Value::Double(_)          => 8,
+            Value::ByteArray(ref val) => 4 + val.len(), // size + bytes
+            Value::String(ref val)    => 2 + val.len(), // size + bytes
+            Value::List(ref vals)     => {
                 // tag + size + payload for each element
                 5 + vals.iter().map(|x| x.len()).sum::<usize>()
             },
-            NbtValue::Compound(ref vals) => {
+            Value::Compound(ref vals) => {
                 vals.iter().map(|(name, nbt)| {
                     // tag + name + payload for each entry
                     3 + name.len() + nbt.len()
                 }).sum::<usize>() + 1 // + u8 for the Tag_End
             },
-            NbtValue::IntArray(ref val)  => 4 + 4 * val.len(),
+            Value::IntArray(ref val)  => 4 + 4 * val.len(),
         }
     }
 
     /// Writes the header (that is, the value's type ID and optionally a title)
-    /// of this `NbtValue` to an `io::Write` destination.
+    /// of this `Value` to an `io::Write` destination.
     pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<()> {
         try!(dst.write_u8(self.id()));
         try!(dst.write_u16::<BigEndian>(title.len() as u16));
@@ -92,26 +92,26 @@ impl NbtValue {
         Ok(())
     }
 
-    /// Writes the payload of this `NbtValue` to an `io::Write` destination.
+    /// Writes the payload of this `Value` to an `io::Write` destination.
     pub fn write(&self, mut dst: &mut io::Write) -> Result<()> {
         match *self {
-            NbtValue::Byte(val)   => try!(dst.write_i8(val)),
-            NbtValue::Short(val)  => try!(dst.write_i16::<BigEndian>(val)),
-            NbtValue::Int(val)    => try!(dst.write_i32::<BigEndian>(val)),
-            NbtValue::Long(val)   => try!(dst.write_i64::<BigEndian>(val)),
-            NbtValue::Float(val)  => try!(dst.write_f32::<BigEndian>(val)),
-            NbtValue::Double(val) => try!(dst.write_f64::<BigEndian>(val)),
-            NbtValue::ByteArray(ref vals) => {
+            Value::Byte(val)   => try!(dst.write_i8(val)),
+            Value::Short(val)  => try!(dst.write_i16::<BigEndian>(val)),
+            Value::Int(val)    => try!(dst.write_i32::<BigEndian>(val)),
+            Value::Long(val)   => try!(dst.write_i64::<BigEndian>(val)),
+            Value::Float(val)  => try!(dst.write_f32::<BigEndian>(val)),
+            Value::Double(val) => try!(dst.write_f64::<BigEndian>(val)),
+            Value::ByteArray(ref vals) => {
                 try!(dst.write_i32::<BigEndian>(vals.len() as i32));
                 for &byte in vals {
                     try!(dst.write_i8(byte));
                 }
             },
-            NbtValue::String(ref val) => {
+            Value::String(ref val) => {
                 try!(dst.write_u16::<BigEndian>(val.len() as u16));
                 try!(dst.write_all(val.as_bytes()));
             },
-            NbtValue::List(ref vals) => {
+            Value::List(ref vals) => {
                 // This is a bit of a trick: if the list is empty, don't bother
                 // checking its type.
                 if vals.len() == 0 {
@@ -131,7 +131,7 @@ impl NbtValue {
                     }
                 }
             },
-            NbtValue::Compound(ref vals)  => {
+            Value::Compound(ref vals)  => {
                 for (name, ref nbt) in vals {
                     // Write the header for the tag.
                     try!(nbt.write_header(dst, &name));
@@ -140,7 +140,7 @@ impl NbtValue {
                 // Write the marker for the end of the Compound.
                 try!(dst.write_u8(0x00))
             }
-            NbtValue::IntArray(ref vals) => {
+            Value::IntArray(ref vals) => {
                 try!(dst.write_i32::<BigEndian>(vals.len() as i32));
                 for &nbt in vals {
                     try!(dst.write_i32::<BigEndian>(nbt));
@@ -150,7 +150,7 @@ impl NbtValue {
         Ok(())
     }
 
-    /// Reads any valid `NbtValue` header (that is, a type ID and a title of
+    /// Reads any valid `Value` header (that is, a type ID and a title of
     /// arbitrary UTF-8 bytes) from an `io::Read` source.
     pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String)> {
         let id = try!(src.read_u8());
@@ -165,46 +165,46 @@ impl NbtValue {
         Ok((id, name))
     }
 
-    /// Reads the payload of an `NbtValue` with a given type ID from an
+    /// Reads the payload of an `Value` with a given type ID from an
     /// `io::Read` source.
-    pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<NbtValue> {
+    pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<Value> {
         match id {
-            0x01 => Ok(NbtValue::Byte(try!(src.read_i8()))),
-            0x02 => Ok(NbtValue::Short(try!(src.read_i16::<BigEndian>()))),
-            0x03 => Ok(NbtValue::Int(try!(src.read_i32::<BigEndian>()))),
-            0x04 => Ok(NbtValue::Long(try!(src.read_i64::<BigEndian>()))),
-            0x05 => Ok(NbtValue::Float(try!(src.read_f32::<BigEndian>()))),
-            0x06 => Ok(NbtValue::Double(try!(src.read_f64::<BigEndian>()))),
+            0x01 => Ok(Value::Byte(try!(src.read_i8()))),
+            0x02 => Ok(Value::Short(try!(src.read_i16::<BigEndian>()))),
+            0x03 => Ok(Value::Int(try!(src.read_i32::<BigEndian>()))),
+            0x04 => Ok(Value::Long(try!(src.read_i64::<BigEndian>()))),
+            0x05 => Ok(Value::Float(try!(src.read_f32::<BigEndian>()))),
+            0x06 => Ok(Value::Double(try!(src.read_f64::<BigEndian>()))),
             0x07 => { // ByteArray
                 let len = try!(src.read_i32::<BigEndian>()) as usize;
                 let mut buf = Vec::with_capacity(len);
                 for _ in 0..len {
                     buf.push(try!(src.read_i8()));
                 }
-                Ok(NbtValue::ByteArray(buf))
+                Ok(Value::ByteArray(buf))
             },
             0x08 => { // String
                 let len = try!(src.read_u16::<BigEndian>()) as usize;
-                Ok(NbtValue::String(try!(read_utf8(src, len))))
+                Ok(Value::String(try!(read_utf8(src, len))))
             },
             0x09 => { // List
                 let id = try!(src.read_u8());
                 let len = try!(src.read_i32::<BigEndian>()) as usize;
                 let mut buf = Vec::with_capacity(len);
                 for _ in 0..len {
-                    buf.push(try!(NbtValue::from_reader(id, src)));
+                    buf.push(try!(Value::from_reader(id, src)));
                 }
-                Ok(NbtValue::List(buf))
+                Ok(Value::List(buf))
             },
             0x0a => { // Compound
                 let mut buf = HashMap::new();
                 loop {
-                    let (id, name) = try!(NbtValue::read_header(src));
+                    let (id, name) = try!(Value::read_header(src));
                     if id == 0x00 { break; }
-                    let tag = try!(NbtValue::from_reader(id, src));
+                    let tag = try!(Value::from_reader(id, src));
                     buf.insert(name, tag);
                 }
-                Ok(NbtValue::Compound(buf))
+                Ok(Value::Compound(buf))
             },
             0x0b => { // IntArray
                 let len = try!(src.read_i32::<BigEndian>()) as usize;
@@ -212,25 +212,25 @@ impl NbtValue {
                 for _ in 0..len {
                     buf.push(try!(src.read_i32::<BigEndian>()));
                 }
-                Ok(NbtValue::IntArray(buf))
+                Ok(Value::IntArray(buf))
             },
             e => Err(Error::InvalidTypeId(e))
         }
     }
 }
 
-impl fmt::Display for NbtValue {
+impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            NbtValue::Byte(v)   => write!(f, "{}", v),
-            NbtValue::Short(v)  => write!(f, "{}", v),
-            NbtValue::Int(v)    => write!(f, "{}", v),
-            NbtValue::Long(v)   => write!(f, "{}", v),
-            NbtValue::Float(v)  => write!(f, "{}", v),
-            NbtValue::Double(v) => write!(f, "{}", v),
-            NbtValue::ByteArray(ref v) => write!(f, "{:?}", v),
-            NbtValue::String(ref v) => write!(f, "{}", v),
-            NbtValue::List(ref v) => {
+            Value::Byte(v)   => write!(f, "{}", v),
+            Value::Short(v)  => write!(f, "{}", v),
+            Value::Int(v)    => write!(f, "{}", v),
+            Value::Long(v)   => write!(f, "{}", v),
+            Value::Float(v)  => write!(f, "{}", v),
+            Value::Double(v) => write!(f, "{}", v),
+            Value::ByteArray(ref v) => write!(f, "{:?}", v),
+            Value::String(ref v) => write!(f, "{}", v),
+            Value::List(ref v) => {
                 if v.len() == 0 {
                     write!(f, "zero entries")
                 } else {
@@ -242,7 +242,7 @@ impl fmt::Display for NbtValue {
                     Ok(())
                 }
             }
-            NbtValue::Compound(ref v) => {
+            Value::Compound(ref v) => {
                 try!(write!(f, "{} entry(ies)\n{{\n", v.len()));
                 for (name, tag) in v {
                     try!(write!(f, "{}(\"{}\"): {}\n", tag.tag_name(), name, tag));
@@ -250,57 +250,57 @@ impl fmt::Display for NbtValue {
                 try!(write!(f, "}}"));
                 Ok(())
             }
-            NbtValue::IntArray(ref v) => write!(f, "{:?}", v)
+            Value::IntArray(ref v) => write!(f, "{:?}", v)
         }
     }
 }
 
-impl From<i8> for NbtValue {
-    fn from(t: i8) -> NbtValue { NbtValue::Byte(t) }
+impl From<i8> for Value {
+    fn from(t: i8) -> Value { Value::Byte(t) }
 }
 
-impl From<i16> for NbtValue {
-    fn from(t: i16) -> NbtValue { NbtValue::Short(t) }
+impl From<i16> for Value {
+    fn from(t: i16) -> Value { Value::Short(t) }
 }
 
-impl From<i32> for NbtValue {
-    fn from(t: i32) -> NbtValue { NbtValue::Int(t) }
+impl From<i32> for Value {
+    fn from(t: i32) -> Value { Value::Int(t) }
 }
 
-impl From<i64> for NbtValue {
-    fn from(t: i64) -> NbtValue { NbtValue::Long(t) }
+impl From<i64> for Value {
+    fn from(t: i64) -> Value { Value::Long(t) }
 }
 
-impl From<f32> for NbtValue {
-    fn from(t: f32) -> NbtValue { NbtValue::Float(t) }
+impl From<f32> for Value {
+    fn from(t: f32) -> Value { Value::Float(t) }
 }
 
-impl From<f64> for NbtValue {
-    fn from(t: f64) -> NbtValue { NbtValue::Double(t) }
+impl From<f64> for Value {
+    fn from(t: f64) -> Value { Value::Double(t) }
 }
 
-impl<'a> From<&'a str> for NbtValue {
-    fn from(t: &'a str) -> NbtValue { NbtValue::String(t.into()) }
+impl<'a> From<&'a str> for Value {
+    fn from(t: &'a str) -> Value { Value::String(t.into()) }
 }
 
-impl From<String> for NbtValue {
-    fn from(t: String) -> NbtValue { NbtValue::String(t) }
+impl From<String> for Value {
+    fn from(t: String) -> Value { Value::String(t) }
 }
 
-impl From<Vec<i8>> for NbtValue {
-    fn from(t: Vec<i8>) -> NbtValue { NbtValue::ByteArray(t) }
+impl From<Vec<i8>> for Value {
+    fn from(t: Vec<i8>) -> Value { Value::ByteArray(t) }
 }
 
-impl<'a> From<&'a [i8]> for NbtValue {
-    fn from(t: &'a [i8]) -> NbtValue { NbtValue::ByteArray(t.into()) }
+impl<'a> From<&'a [i8]> for Value {
+    fn from(t: &'a [i8]) -> Value { Value::ByteArray(t.into()) }
 }
 
-impl From<Vec<i32>> for NbtValue {
-    fn from(t: Vec<i32>) -> NbtValue { NbtValue::IntArray(t) }
+impl From<Vec<i32>> for Value {
+    fn from(t: Vec<i32>) -> Value { Value::IntArray(t) }
 }
 
-impl<'a> From<&'a [i32]> for NbtValue {
-    fn from(t: &'a [i32]) -> NbtValue { NbtValue::IntArray(t.into()) }
+impl<'a> From<&'a [i32]> for Value {
+    fn from(t: &'a [i32]) -> Value { Value::IntArray(t.into()) }
 }
 
 /// Returns a `Vec<u8>` containing the next `len` bytes in the reader.

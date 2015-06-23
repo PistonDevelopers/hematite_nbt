@@ -4,16 +4,16 @@ use std::fs::File;
 
 use test::Bencher;
 
-use blob::NbtBlob;
+use blob::Blob;
 use error::{Error, Result};
-use value::NbtValue;
+use value::Value;
 use serialize::{
     NbtFmt, emit_next_header, from_reader, to_writer, close_nbt, read_bare_nbt
 };
 
 #[test]
 fn nbt_nonempty() {
-    let mut nbt = NbtBlob::new("".to_string());
+    let mut nbt = Blob::new("".to_string());
     nbt.insert("name".to_string(),      "Herobrine").unwrap();
     nbt.insert("health".to_string(),    100i8).unwrap();
     nbt.insert("food".to_string(),      20.0f32).unwrap();
@@ -54,13 +54,13 @@ fn nbt_nonempty() {
     // not guarantee order (and so encoding is likely to be different, but
     // still correct).
     let mut src = io::Cursor::new(bytes);
-    let file = NbtBlob::from_reader(&mut src).unwrap();
+    let file = Blob::from_reader(&mut src).unwrap();
     assert_eq!(&file, &nbt);
 }
 
 #[test]
 fn nbt_empty_nbtfile() {
-    let nbt = NbtBlob::new("".to_string());
+    let nbt = Blob::new("".to_string());
 
     let bytes = vec![
         0x0a,
@@ -78,16 +78,16 @@ fn nbt_empty_nbtfile() {
 
     // Test decoding.
     let mut src = io::Cursor::new(bytes);
-    let file = NbtBlob::from_reader(&mut src).unwrap();
+    let file = Blob::from_reader(&mut src).unwrap();
     assert_eq!(&file, &nbt);
 }
 
 #[test]
 fn nbt_nested_compound() {
     let mut inner = HashMap::new();
-    inner.insert("test".to_string(), NbtValue::Byte(123));
-    let mut nbt = NbtBlob::new("".to_string());
-    nbt.insert("inner".to_string(), NbtValue::Compound(inner)).unwrap();
+    inner.insert("test".to_string(), Value::Byte(123));
+    let mut nbt = Blob::new("".to_string());
+    nbt.insert("inner".to_string(), Value::Compound(inner)).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -113,14 +113,14 @@ fn nbt_nested_compound() {
 
     // Test decoding.
     let mut src = io::Cursor::new(bytes);
-    let file = NbtBlob::from_reader(&mut src).unwrap();
+    let file = Blob::from_reader(&mut src).unwrap();
     assert_eq!(&file, &nbt);
 }
 
 #[test]
 fn nbt_empty_list() {
-    let mut nbt = NbtBlob::new("".to_string());
-    nbt.insert("list".to_string(), NbtValue::List(Vec::new())).unwrap();
+    let mut nbt = Blob::new("".to_string());
+    nbt.insert("list".to_string(), Value::List(Vec::new())).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -143,7 +143,7 @@ fn nbt_empty_list() {
 
     // Test decoding.
     let mut src = io::Cursor::new(bytes);
-    let file = NbtBlob::from_reader(&mut src).unwrap();
+    let file = Blob::from_reader(&mut src).unwrap();
     assert_eq!(&file, &nbt);
 }
 
@@ -151,7 +151,7 @@ fn nbt_empty_list() {
 fn nbt_no_root() {
     let bytes = vec![0x00];
     // Will fail, because the root is not a compound.
-    assert_eq!(NbtBlob::from_reader(&mut io::Cursor::new(&bytes[..])),
+    assert_eq!(Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
             Err(Error::NoRootCompound));
 }
 
@@ -168,7 +168,7 @@ fn nbt_no_end_tag() {
     ];
 
     // Will fail, because there is no end tag.
-    assert_eq!(NbtBlob::from_reader(&mut io::Cursor::new(&bytes[..])),
+    assert_eq!(Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
             Err(Error::IncompleteNbtValue));
 }
 
@@ -183,18 +183,18 @@ fn nbt_invalid_id() {
                 0x01,
         0x00
     ];
-    assert_eq!(NbtBlob::from_reader(&mut io::Cursor::new(&bytes[..])),
+    assert_eq!(Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
                Err(Error::InvalidTypeId(15)));
 }
 
 #[test]
 fn nbt_invalid_list() {
-    let mut nbt = NbtBlob::new("".to_string());
+    let mut nbt = Blob::new("".to_string());
     let mut badlist = Vec::new();
-    badlist.push(NbtValue::Byte(1));
-    badlist.push(NbtValue::Short(1));
+    badlist.push(Value::Byte(1));
+    badlist.push(Value::Short(1));
     // Will fail to insert, because the List is heterogeneous.
-    assert_eq!(nbt.insert("list".to_string(), NbtValue::List(badlist)),
+    assert_eq!(nbt.insert("list".to_string(), Value::List(badlist)),
                Err(Error::HeterogeneousList));
 }
 
@@ -202,37 +202,37 @@ fn nbt_invalid_list() {
 fn nbt_bad_compression() {
     // These aren't in the zlib or gzip format, so they'll fail.
     let bytes = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    assert!(NbtBlob::from_gzip(&mut io::Cursor::new(&bytes[..])).is_err());
-    assert!(NbtBlob::from_zlib(&mut io::Cursor::new(&bytes[..])).is_err());
+    assert!(Blob::from_gzip(&mut io::Cursor::new(&bytes[..])).is_err());
+    assert!(Blob::from_zlib(&mut io::Cursor::new(&bytes[..])).is_err());
 }
 
 #[test]
 fn nbt_compression() {
-    // Create a non-trivial NbtBlob.
-    let mut nbt = NbtBlob::new("".to_string());
-    nbt.insert("name".to_string(), NbtValue::String("Herobrine".to_string())).unwrap();
-    nbt.insert("health".to_string(), NbtValue::Byte(100)).unwrap();
-    nbt.insert("food".to_string(), NbtValue::Float(20.0)).unwrap();
-    nbt.insert("emeralds".to_string(), NbtValue::Short(12345)).unwrap();
-    nbt.insert("timestamp".to_string(), NbtValue::Int(1424778774)).unwrap();
+    // Create a non-trivial Blob.
+    let mut nbt = Blob::new("".to_string());
+    nbt.insert("name".to_string(), Value::String("Herobrine".to_string())).unwrap();
+    nbt.insert("health".to_string(), Value::Byte(100)).unwrap();
+    nbt.insert("food".to_string(), Value::Float(20.0)).unwrap();
+    nbt.insert("emeralds".to_string(), Value::Short(12345)).unwrap();
+    nbt.insert("timestamp".to_string(), Value::Int(1424778774)).unwrap();
 
     // Test zlib encoding/decoding.
     let mut zlib_dst = Vec::new();
     nbt.write_zlib(&mut zlib_dst).unwrap();
-    let zlib_file = NbtBlob::from_zlib(&mut io::Cursor::new(zlib_dst)).unwrap();
+    let zlib_file = Blob::from_zlib(&mut io::Cursor::new(zlib_dst)).unwrap();
     assert_eq!(&nbt, &zlib_file);
 
     // Test gzip encoding/decoding.
     let mut gzip_dst = Vec::new();
     nbt.write_gzip(&mut gzip_dst).unwrap();
-    let gz_file = NbtBlob::from_gzip(&mut io::Cursor::new(gzip_dst)).unwrap();
+    let gz_file = Blob::from_gzip(&mut io::Cursor::new(gzip_dst)).unwrap();
     assert_eq!(&nbt, &gz_file);
 }
 
 #[test]
 fn nbt_bigtest() {
     let mut bigtest_file = File::open("tests/big1.nbt").unwrap();
-    let bigtest = NbtBlob::from_gzip(&mut bigtest_file).unwrap();
+    let bigtest = Blob::from_gzip(&mut bigtest_file).unwrap();
     // This is a pretty indirect way of testing correctness.
     assert_eq!(1544, bigtest.len());
 }
@@ -240,7 +240,7 @@ fn nbt_bigtest() {
 #[bench]
 fn nbt_bench_bigwrite(b: &mut Bencher) {
     let mut file = File::open("tests/big1.nbt").unwrap();
-    let nbt = NbtBlob::from_gzip(&mut file).unwrap();
+    let nbt = Blob::from_gzip(&mut file).unwrap();
     b.iter(|| {
         nbt.write(&mut io::sink())
     });
@@ -249,7 +249,7 @@ fn nbt_bench_bigwrite(b: &mut Bencher) {
 #[bench]
 fn nbt_bench_smallwrite(b: &mut Bencher) {
     let mut file = File::open("tests/small4.nbt").unwrap();
-    let nbt = NbtBlob::from_reader(&mut file).unwrap();
+    let nbt = Blob::from_reader(&mut file).unwrap();
     b.iter(|| {
         nbt.write(&mut io::sink())
     });
