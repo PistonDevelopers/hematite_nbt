@@ -1,5 +1,10 @@
 [package]
 name = "nbt"
+description = "A library for working with Minecraft's Named Binary Tag (NBT) file format"
+documentation = "http://docs.piston.rs/hematite_nbt/nbt/"
+repository = "https://github.com/PistonDevelopers/hematite_nbt"
+readme = "README.md"
+license = "MIT"
 version = "0.1.0"
 authors = [
     "Fenhl <fenhl@fenhl.net>",
