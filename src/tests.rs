@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io;
 use std::fs::File;
 
-use test::Bencher;
+//use test::Bencher;
 
 use blob::Blob;
 use error::{Error, Result};
@@ -237,23 +237,23 @@ fn nbt_bigtest() {
     assert_eq!(1544, bigtest.len());
 }
 
-#[bench]
-fn nbt_bench_bigwrite(b: &mut Bencher) {
-    let mut file = File::open("tests/big1.nbt").unwrap();
-    let nbt = Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        nbt.write(&mut io::sink())
-    });
-}
+//#[bench]
+//fn nbt_bench_bigwrite(b: &mut Bencher) {
+//    let mut file = File::open("tests/big1.nbt").unwrap();
+//    let nbt = Blob::from_gzip(&mut file).unwrap();
+//    b.iter(|| {
+//        nbt.write(&mut io::sink())
+//    });
+//}
 
-#[bench]
-fn nbt_bench_smallwrite(b: &mut Bencher) {
-    let mut file = File::open("tests/small4.nbt").unwrap();
-    let nbt = Blob::from_reader(&mut file).unwrap();
-    b.iter(|| {
-        nbt.write(&mut io::sink())
-    });
-}
+//#[bench]
+//fn nbt_bench_smallwrite(b: &mut Bencher) {
+//    let mut file = File::open("tests/small4.nbt").unwrap();
+//    let nbt = Blob::from_reader(&mut file).unwrap();
+//    b.iter(|| {
+//        nbt.write(&mut io::sink())
+//    });
+//}
 
 #[test]
 fn serialize_basic_types() {
