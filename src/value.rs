@@ -71,13 +71,13 @@ impl Value {
             Value::String(ref val)    => 2 + val.len(), // size + bytes
             Value::List(ref vals)     => {
                 // tag + size + payload for each element
-                5 + vals.iter().map(|x| x.len()).sum::<usize>()
+                5 + vals.iter().map(|x| x.len()).fold(0, |acc, item| acc + item)
             },
             Value::Compound(ref vals) => {
                 vals.iter().map(|(name, nbt)| {
                     // tag + name + payload for each entry
                     3 + name.len() + nbt.len()
-                }).sum::<usize>() + 1 // + u8 for the Tag_End
+                }).fold(0, |acc, item| acc + item) + 1 // + u8 for the Tag_End
             },
             Value::IntArray(ref val)  => 4 + 4 * val.len(),
         }

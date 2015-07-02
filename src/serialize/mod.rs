@@ -30,11 +30,11 @@ pub mod raw;
 /// ```ignore
 /// #![feature(plugin, custom_derive)]
 /// #![plugin(nbt_macros)]
-/// 
+///
 /// extern crate nbt;
-/// 
+///
 /// use nbt::serialize::{NbtFmt, to_writer};
-/// 
+///
 /// #[derive(NbtFmt)]
 /// struct MyMob {
 ///     name: String,
@@ -142,7 +142,7 @@ pub trait NbtFmt {
         try!(raw::write_bare_string(dst, name.as_ref()));
         self.to_bare_nbt(dst)
     }
-    
+
     /// Indicates the NBT tag that this type corresponds to. Most custom types
     /// (usually structs) will advertise the default, `0x0a`, which is the
     /// default.
@@ -322,7 +322,7 @@ nbtfmt_ptr!([i32], Vec<i32>, raw::read_bare_int_array, raw::write_bare_int_array
 // impl<T> NbtFmt for [T] where T: NbtFmt {
 //  fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
 //        where W: io::Write {
-        
+
 //          write_bare_list(dst, self.iter())
 //  }
 //     #[inline] fn tag() -> u8 { 0x09 }

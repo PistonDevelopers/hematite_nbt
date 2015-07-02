@@ -1,11 +1,7 @@
 //! MC Named Binary Tag type.
 
-#![feature(iter_arith)]
-#![cfg_attr(test, feature(test))]
-
 extern crate byteorder;
 extern crate flate2;
-#[cfg(test)] extern crate test;
 
 /* Re-export the core API from submodules. */
 pub use blob::Blob;
