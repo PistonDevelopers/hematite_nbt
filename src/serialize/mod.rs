@@ -119,7 +119,7 @@ pub mod raw;
 /// }
 /// ```
 pub trait NbtFmt {
-    type Into: Sized = Self;
+    type Into: Sized;
 
     /// Convert this type to NBT format using the specified `io::Write`
     /// destination, but does not serialize its identifying NBT tag or name.
@@ -230,6 +230,8 @@ pub fn read_bare_nbt<R, T>(src: &mut R) -> Result<T>
 macro_rules! nbtfmt_value {
   ($T:ty, $read_method:expr, $write_method:expr, $tag:expr) => (
     impl NbtFmt for $T {
+        type Into = $T;
+
         #[inline]
         fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
@@ -278,6 +280,8 @@ macro_rules! nbtfmt_ptr {
 macro_rules! nbtfmt_slice {
   ($T:ty, $read_method:expr, $write_method:expr, $tag:expr) => (
     impl NbtFmt for $T {
+        type Into = $T;
+
         #[inline]
         fn to_bare_nbt<W>(&self, dst: &mut W) -> Result<()>
            where W: io::Write
