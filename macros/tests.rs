@@ -15,6 +15,12 @@ struct TestStruct {
     timestamp: i32
 }
 
+#[derive(NbtFmt, PartialEq, Debug)]
+struct ByteArrayStruct {
+    #[nbt_byte_array]
+    array: Vec<i8>
+}
+
 #[test]
 fn nbt_test_struct_serialize() {
     let test = TestStruct {
@@ -57,5 +63,21 @@ fn nbt_test_struct_serialize() {
     let result: TestStruct = serialize::from_reader(&mut src).unwrap();
 
     assert_eq!(&bytes[..], &dst[..]);
+    assert_eq!(&test, &result);
+}
+
+#[test]
+fn nbt_test_byte_array() {
+    let test = ByteArrayStruct { array: vec![0, 1, 2, 3, 4, 5] };
+
+    let mut blob = nbt::Blob::new("".to_string());
+    blob.insert("array".to_string(), nbt::Value::ByteArray(vec![0, 1, 2, 3, 4, 5]));
+
+    let mut dst = Vec::new();
+    blob.write(&mut dst).unwrap();
+
+    let mut src = std::io::Cursor::new(&dst[..]);
+    let result: ByteArrayStruct = serialize::from_reader(&mut src).unwrap();
+
     assert_eq!(&test, &result);
 }
