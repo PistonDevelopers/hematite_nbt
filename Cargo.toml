@@ -17,5 +17,5 @@ name = "nbt"
 path = "src/lib.rs"
 
 [dependencies]
-byteorder = "*"
-flate2 = "*"
+byteorder = "0.4"
+flate2 = "0.2"
