@@ -5,8 +5,6 @@ use std::io::ErrorKind::InvalidInput;
 use std::result::Result as StdResult;
 use std::string;
 
-use byteorder;
-
 /// A convenient alias type for results when reading/writing the Named Binary
 /// Tag format.
 pub type Result<T> = StdResult<T, Error>;
@@ -95,6 +93,11 @@ impl PartialEq<Error> for Error {
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Error {
+        use std::io::ErrorKind;
+
+        if e.kind() == ErrorKind::UnexpectedEof {
+            return Error::IncompleteNbtValue;
+        }
         Error::IoError(e)
     }
 }
@@ -102,17 +105,6 @@ impl From<io::Error> for Error {
 impl From<string::FromUtf8Error> for Error {
     fn from(_: string::FromUtf8Error) -> Error {
         Error::InvalidUtf8
-    }
-}
-
-impl From<byteorder::Error> for Error {
-    fn from(err: byteorder::Error) -> Error {
-        match err {
-            // Promote byteorder's I/O errors to Error's I/O errors.
-            byteorder::Error::Io(e) => Error::IoError(e),
-            // Anything else is really an incomplete value.
-            byteorder::Error::UnexpectedEOF => Error::IncompleteNbtValue
-        }
     }
 }
 
