@@ -10,7 +10,7 @@
 
 use std::io;
 
-use byteorder::{ByteOrder, BigEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use error::{Error, Result};
 use serialize::{NbtFmt, close_nbt};

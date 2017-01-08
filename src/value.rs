@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io;
 
-use byteorder::{ByteOrder, BigEndian, WriteBytesExt, ReadBytesExt};
+use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 
 use error::{Error, Result};
 
