@@ -307,6 +307,8 @@ fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -
                 // identifier.
                 let mut name_pat = cx.pat_lit(field.span, cx.expr_str(field.span, name.clone()));
 
+                let mut read_path = pathexpr!(cx, field.span, nbt::serialize::read_bare_nbt);
+
                 // Optionally change name_pat for the field when the
                 // #[nbt_field = "fieldX"] attribute is present on the item.
                 for ref attr in field.node.attrs.iter() {
@@ -317,16 +319,18 @@ fn cs_read_bare_nbt(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -
                             cx.span_err(field.span, "`#[nbt_field]` requires a &str value.");
                             return cx.expr_fail(trait_span, InternedString::new(""));
                         }
-                        break;
+                    } else if attr.check_name("nbt_byte_array") {
+                        // FIXME: Check type is Vec<i8> or [i8; len].
+                        read_path = pathexpr!(cx, field.span, nbt::serialize::raw::read_bare_byte_array);
+                    } else if attr.check_name("nbt_int_array") {
+                        // FIXME: Check type is Vec<i32> or [i32; len].
+                        read_path = pathexpr!(cx, field.span, nbt::serialize::raw::read_bare_int_array);
                     }
                 }
 
-                let read_bare_nbt_path = pathexpr!(cx, field.span, nbt::serialize::read_bare_nbt);
-
                 // Create a call expression, using the function path and the
                 // `src` argument.
-                let read_call = cx.expr_call(field.span, read_bare_nbt_path,
-                                            vec![src_expr.clone()]);
+                let read_call = cx.expr_call(field.span, read_path, vec![src_expr.clone()]);
                 let try_call = cx.expr_try(field.span, read_call);
 
                 // Create the `name = try!(Type::read_bare_nbt(src))` expression.

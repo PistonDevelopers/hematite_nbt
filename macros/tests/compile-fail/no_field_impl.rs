@@ -15,7 +15,6 @@ struct Outer {
  //~^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
  //~^^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
  //~^^^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
- //~^^^^ ERROR the trait `nbt::serialize::NbtFmt` is not implemented for the type `Inner`
 }
 
 fn main() { }
