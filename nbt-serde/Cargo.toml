@@ -1,0 +1,11 @@
+[package]
+name = "hematite-nbt-serde"
+version = "0.1.0"
+authors = ["Aaron Jacobs <atheriel@gmail.com>"]
+
+[dependencies]
+serde = "0.9"
+hematite-nbt = { path = "..", version = "*" }
+
+[dev-dependencies]
+serde_derive = "0.9"
