@@ -10,6 +10,7 @@ pub type Result<T> = StdResult<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     Nbt(nbt::Error),
+    NoRootCompound,
 }
 
 impl fmt::Display for Error {
@@ -28,6 +29,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Nbt(_) => "NBT error",
+            Error::NoRootCompound => "no root compound",
         }
     }
 }
