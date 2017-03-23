@@ -3,32 +3,54 @@ use std::io;
 use serde;
 use serde::ser;
 
+use nbt::serialize::close_nbt;
+use nbt::serialize::raw;
+
 use error::{Error, Result};
 
-pub struct Serializer<W> {
+pub struct Serializer<'a, W> {
     writer: W,
+    header: Option<&'a str>,
 }
 
-impl<W> Serializer<W> where W: io::Write {
-    pub fn new(writer: W) -> Self {
-        Serializer { writer: writer }
+impl<'a, W> Serializer<'a, W> where W: io::Write {
+    pub fn new(writer: W, header: Option<&'a str>) -> Self {
+        Serializer { writer: writer, header: header }
     }
 
     #[inline]
     pub fn into_inner(self) -> W {
         self.writer
     }
+
+    #[inline]
+    fn write_header(&mut self, tag: i8, header: Option<&str>) -> Result<()> {
+        try!(raw::write_bare_byte(&mut self.writer, tag));
+        match header {
+            None =>
+                raw::write_bare_short(&mut self.writer, 0).map_err(From::from),
+            Some(h) =>
+                raw::write_bare_string(&mut self.writer, h).map_err(From::from),
+        }
+    }
 }
 
-struct InnerSerializer<'a, W: 'a> {
-    outer: &'a mut Serializer<W>,
+struct InnerSerializer<'a, 'b: 'a, W: 'a> {
+    outer: &'a mut Serializer<'b, W>,
+    header: &'a str,
 }
 
-pub struct Compound<'a, W: 'a> {
-    ser: &'a mut Serializer<W>,
+impl<'a, 'b, W> InnerSerializer<'a, 'b, W> where W: io::Write {
+    fn write_header(&mut self, tag: i8) -> Result<()> {
+        self.outer.write_header(tag, Some(self.header))
+    }
 }
 
-impl<'a, W> ser::SerializeSeq for Compound<'a, W>
+pub struct Compound<'a, 'b: 'a, W: 'a> {
+    outer: &'a mut Serializer<'b, W>,
+}
+
+impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
@@ -45,7 +67,7 @@ impl<'a, W> ser::SerializeSeq for Compound<'a, W>
     }
 }
 
-impl<'a, W> ser::SerializeTuple for Compound<'a, W>
+impl<'a, 'b, W> ser::SerializeTuple for Compound<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
@@ -62,7 +84,7 @@ impl<'a, W> ser::SerializeTuple for Compound<'a, W>
     }
 }
 
-impl<'a, W> ser::SerializeTupleStruct for Compound<'a, W>
+impl<'a, 'b, W> ser::SerializeTupleStruct for Compound<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
@@ -79,7 +101,7 @@ impl<'a, W> ser::SerializeTupleStruct for Compound<'a, W>
     }
 }
 
-impl<'a, W> ser::SerializeTupleVariant for Compound<'a, W>
+impl<'a, 'b, W> ser::SerializeTupleVariant for Compound<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
@@ -96,7 +118,7 @@ impl<'a, W> ser::SerializeTupleVariant for Compound<'a, W>
     }
 }
 
-impl<'a, W> ser::SerializeMap for Compound<'a, W>
+impl<'a, 'b, W> ser::SerializeMap for Compound<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
@@ -119,7 +141,28 @@ impl<'a, W> ser::SerializeMap for Compound<'a, W>
     }
 }
 
-impl<'a, W> ser::SerializeStruct for Compound<'a, W>
+impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
+    where W: io::Write
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
+                                  -> Result<()>
+        where T: serde::Serialize
+    {
+        value.serialize(&mut InnerSerializer {
+            outer: self.outer,
+            header: key
+        })
+    }
+
+    fn end(self) -> Result<()> {
+        close_nbt(&mut self.outer.writer).map_err(From::from)
+    }
+}
+
+impl<'a, 'b, W> ser::SerializeStructVariant for Compound<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
@@ -137,34 +180,16 @@ impl<'a, W> ser::SerializeStruct for Compound<'a, W>
     }
 }
 
-impl<'a, W> ser::SerializeStructVariant for Compound<'a, W>
-    where W: io::Write
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
-                                  -> Result<()>
-        where T: serde::Serialize
-    {
-        unimplemented!();
-    }
-
-    fn end(self) -> Result<()> {
-        unimplemented!();
-    }
-}
-
-impl<'a, W> serde::Serializer for &'a mut Serializer<W> where W: io::Write {
+impl<'a, 'b, W> serde::Serializer for &'a mut Serializer<'b, W> where W: io::Write {
     type Ok = ();
     type Error = Error;
     type SerializeSeq = ser::Impossible<(), Error>;
     type SerializeTuple = ser::Impossible<(), Error>;
     type SerializeTupleStruct = ser::Impossible<(), Error>;
     type SerializeTupleVariant = ser::Impossible<(), Error>;
-    type SerializeMap = Compound<'a, W>;
-    type SerializeStruct = Compound<'a, W>;
-    type SerializeStructVariant = Compound<'a, W>;
+    type SerializeMap = Compound<'a, 'b, W>;
+    type SerializeStruct = Compound<'a, 'b, W>;
+    type SerializeStructVariant = Compound<'a, 'b, W>;
 
     #[inline]
     fn serialize_bool(self, _: bool) -> Result<()> {
@@ -320,10 +345,12 @@ impl<'a, W> serde::Serializer for &'a mut Serializer<W> where W: io::Write {
     }
 
     #[inline]
-    fn serialize_struct(self, name: &'static str, len: usize)
+    fn serialize_struct(self, _: &'static str, _: usize)
                         -> Result<Self::SerializeStruct>
     {
-        unimplemented!()
+        let header = self.header; // Circumvent strange borrowing errors.
+        try!(self.write_header(0x0a, header));
+        Ok(Compound { outer: self })
     }
 
     #[inline]
@@ -335,16 +362,16 @@ impl<'a, W> serde::Serializer for &'a mut Serializer<W> where W: io::Write {
     }
 }
 
-impl<'a, W> serde::Serializer for &'a mut InnerSerializer<'a, W> where W: io::Write {
+impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W: io::Write {
     type Ok = ();
     type Error = Error;
-    type SerializeSeq = Compound<'a, W>;
-    type SerializeTuple = Compound<'a, W>;
-    type SerializeTupleStruct = Compound<'a, W>;
-    type SerializeTupleVariant = Compound<'a, W>;
-    type SerializeMap = Compound<'a, W>;
-    type SerializeStruct = Compound<'a, W>;
-    type SerializeStructVariant = Compound<'a, W>;
+    type SerializeSeq = Compound<'a, 'b, W>;
+    type SerializeTuple = Compound<'a, 'b, W>;
+    type SerializeTupleStruct = Compound<'a, 'b, W>;
+    type SerializeTupleVariant = Compound<'a, 'b, W>;
+    type SerializeMap = Compound<'a, 'b, W>;
+    type SerializeStruct = Compound<'a, 'b, W>;
+    type SerializeStructVariant = Compound<'a, 'b, W>;
 
     #[inline]
     fn serialize_bool(self, value: bool) -> Result<()> {
@@ -353,22 +380,26 @@ impl<'a, W> serde::Serializer for &'a mut InnerSerializer<'a, W> where W: io::Wr
 
     #[inline]
     fn serialize_i8(self, v: i8) -> Result<()> {
-        unimplemented!()
+        try!(self.write_header(0x01));
+        raw::write_bare_byte(&mut self.outer.writer, v).map_err(From::from)
     }
 
     #[inline]
     fn serialize_i16(self, v: i16) -> Result<()> {
-        unimplemented!()
+        try!(self.write_header(0x02));
+        raw::write_bare_short(&mut self.outer.writer, v).map_err(From::from)
     }
 
     #[inline]
     fn serialize_i32(self, v: i32) -> Result<()> {
-        unimplemented!()
+        try!(self.write_header(0x03));
+        raw::write_bare_int(&mut self.outer.writer, v).map_err(From::from)
     }
 
     #[inline]
     fn serialize_i64(self, v: i64) -> Result<()> {
-        unimplemented!()
+        try!(self.write_header(0x04));
+        raw::write_bare_long(&mut self.outer.writer, v).map_err(From::from)
     }
 
     #[inline]
@@ -393,12 +424,14 @@ impl<'a, W> serde::Serializer for &'a mut InnerSerializer<'a, W> where W: io::Wr
 
     #[inline]
     fn serialize_f32(self, v: f32) -> Result<()> {
-        unimplemented!()
+        try!(self.write_header(0x05));
+        raw::write_bare_float(&mut self.outer.writer, v).map_err(From::from)
     }
 
     #[inline]
     fn serialize_f64(self, v: f64) -> Result<()> {
-        unimplemented!()
+        try!(self.write_header(0x06));
+        raw::write_bare_double(&mut self.outer.writer, v).map_err(From::from)
     }
 
     #[inline]
@@ -407,8 +440,9 @@ impl<'a, W> serde::Serializer for &'a mut InnerSerializer<'a, W> where W: io::Wr
     }
 
     #[inline]
-    fn serialize_str(self, value: &str) -> Result<()> {
-        unimplemented!()
+    fn serialize_str(self, v: &str) -> Result<()> {
+        try!(self.write_header(0x08));
+        raw::write_bare_string(&mut self.outer.writer, v).map_err(From::from)
     }
 
     #[inline]

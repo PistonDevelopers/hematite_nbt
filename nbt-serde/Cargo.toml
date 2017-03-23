@@ -9,3 +9,10 @@ hematite-nbt = { path = "..", version = "*" }
 
 [dev-dependencies]
 serde_derive = "0.9"
+
+[lib]
+name = "nbt_serde"
+
+[[test]]
+name = "tests"
+path = "src/tests.rs"
