@@ -15,7 +15,8 @@ struct Herobrine {
     health: i8,
     food: f32,
     emeralds: i16,
-    timestamp: i32
+    timestamp: i32,
+    data: Vec<i8>,
 }
     
 #[test]
@@ -25,7 +26,8 @@ fn nbt_derive_basic_encoding() {
         health: 100,
         food: 20.0,
         emeralds: 12345,
-        timestamp: 1424778774
+        timestamp: 1424778774,
+        data: vec![1, 2, 3]
     };
 
     let mut dst = Vec::new();
@@ -55,6 +57,12 @@ fn nbt_derive_basic_encoding() {
                 0x00, 0x09,
                 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
                 0x54, 0xec, 0x66, 0x16,
+            0x09,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x01, // List type.
+                0x00, 0x00, 0x00, 0x03, // Length.
+                0x01, 0x02, 0x03, // Content.
         0x00
     ];
     

@@ -35,19 +35,36 @@ impl<'a, W> Serializer<'a, W> where W: io::Write {
     }
 }
 
+#[derive(Clone)]
+enum State<'a> {
+    Named(&'a str),
+    ListHead(usize),
+    Bare,
+}
+
 struct InnerSerializer<'a, 'b: 'a, W: 'a> {
     outer: &'a mut Serializer<'b, W>,
-    header: &'a str,
+    state: State<'a>,
 }
 
 impl<'a, 'b, W> InnerSerializer<'a, 'b, W> where W: io::Write {
     fn write_header(&mut self, tag: i8) -> Result<()> {
-        self.outer.write_header(tag, Some(self.header))
+        match self.state {
+            State::Bare          => Ok(()),
+            State::Named(header) => self.outer.write_header(tag, Some(header)),
+            State::ListHead(s)   => {
+                try!(raw::write_bare_byte(&mut self.outer.writer, tag));
+                try!(raw::write_bare_int(&mut self.outer.writer, s as i32));
+                self.state = State::Bare;
+                Ok(())
+            }
+        }
     }
 }
 
 pub struct Compound<'a, 'b: 'a, W: 'a> {
     outer: &'a mut Serializer<'b, W>,
+    state: State<'b>,
 }
 
 impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
@@ -59,11 +76,17 @@ impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
         where T: serde::Serialize
     {
-        unimplemented!();
+        let mut ser = InnerSerializer {
+            outer: self.outer,
+            state: self.state.clone()
+        };
+        try!(value.serialize(&mut ser));
+        self.state = State::Bare;
+        Ok(())
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!();
+        Ok(())
     }
 }
 
@@ -153,7 +176,7 @@ impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
     {
         value.serialize(&mut InnerSerializer {
             outer: self.outer,
-            header: key
+            state: State::Named(key)
         })
     }
 
@@ -350,7 +373,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Serializer<'b, W> where W: io::Wri
     {
         let header = self.header; // Circumvent strange borrowing errors.
         try!(self.write_header(0x0a, header));
-        Ok(Compound { outer: self })
+        Ok(Compound { outer: self, state: State::Bare })
     }
 
     #[inline]
@@ -499,13 +522,16 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
 
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        unimplemented!()
+        // FIXME: Fail on unsized lists.
+        try!(self.write_header(0x09));
+        Ok(Compound { outer: self.outer, state: State::ListHead(len.unwrap()) })
     }
 
     #[inline]
-    fn serialize_seq_fixed_size(self, size: usize) -> Result<Self::SerializeSeq>
+    fn serialize_seq_fixed_size(self, len: usize) -> Result<Self::SerializeSeq>
     {
-        unimplemented!()
+        try!(self.write_header(0x09));
+        Ok(Compound { outer: self.outer, state: State::ListHead(len) })
     }
 
     #[inline]
@@ -537,7 +563,8 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
     fn serialize_struct(self, name: &'static str, len: usize)
                         -> Result<Self::SerializeStruct>
     {
-        unimplemented!()
+        try!(self.write_header(0x0a));
+        Ok(Compound { outer: self.outer, state: State::Bare })
     }
 
     #[inline]
