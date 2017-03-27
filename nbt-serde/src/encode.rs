@@ -397,8 +397,9 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
     type SerializeStructVariant = Compound<'a, 'b, W>;
 
     #[inline]
-    fn serialize_bool(self, value: bool) -> Result<()> {
-        unimplemented!()
+    fn serialize_bool(self, v: bool) -> Result<()> {
+        try!(self.write_header(0x01));
+        self.serialize_i8(v as i8)
     }
 
     #[inline]
@@ -482,7 +483,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<()>
         where T: ser::Serialize
     {
-        unimplemented!()
+        value.serialize(self)
     }
 
     #[inline]
@@ -503,11 +504,11 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T)
+    fn serialize_newtype_struct<T: ?Sized>(self, _: &'static str, value: &T)
                                            -> Result<()>
         where T: ser::Serialize
     {
-        unimplemented!()
+        value.serialize(self)
     }
 
     #[inline]
