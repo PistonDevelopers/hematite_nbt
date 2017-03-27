@@ -426,23 +426,23 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
     }
 
     #[inline]
-    fn serialize_u8(self, v: u8) -> Result<()> {
-        unimplemented!()
+    fn serialize_u8(self, _: u8) -> Result<()> {
+        Err(Error::UnrepresentableType("u8"))
     }
 
     #[inline]
-    fn serialize_u16(self, v: u16) -> Result<()> {
-        unimplemented!()
+    fn serialize_u16(self, _: u16) -> Result<()> {
+        Err(Error::UnrepresentableType("u16"))
     }
 
     #[inline]
-    fn serialize_u32(self, v: u32) -> Result<()> {
-        unimplemented!()
+    fn serialize_u32(self, _: u32) -> Result<()> {
+        Err(Error::UnrepresentableType("u32"))
     }
 
     #[inline]
-    fn serialize_u64(self, v: u64) -> Result<()> {
-        unimplemented!()
+    fn serialize_u64(self, _: u64) -> Result<()> {
+        Err(Error::UnrepresentableType("u64"))
     }
 
     #[inline]
@@ -522,9 +522,12 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
 
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        // FIXME: Fail on unsized lists.
-        try!(self.write_header(0x09));
-        Ok(Compound { outer: self.outer, state: State::ListHead(len.unwrap()) })
+        if let Some(l) = len {
+            try!(self.write_header(0x09));
+            Ok(Compound { outer: self.outer, state: State::ListHead(l) })
+        } else {
+            Err(Error::UnrepresentableType("unsized list"))
+        }
     }
 
     #[inline]
