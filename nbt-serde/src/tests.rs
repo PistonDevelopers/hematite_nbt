@@ -10,33 +10,163 @@ use serde::Serialize;
 use nbt_serde::encode::Serializer;
 
 #[derive(Serialize)]
-struct Herobrine {
-    name: String,
-    health: i8,
-    food: f32,
-    emeralds: i16,
-    timestamp: i32,
-    data: Vec<i8>,
-}
-
-#[derive(Serialize)]
-struct Simple {
+struct ByteNbt {
     data: i8,
 }
 
-#[derive(Serialize)]
-struct NewSimple(Simple);
-    
 #[test]
-fn nbt_derive_basic_encoding() {
-    let nbt = Herobrine {
-        name: "Herobrine".to_string(),
-        health: 100,
-        food: 20.0,
-        emeralds: 12345,
-        timestamp: 1424778774,
-        data: vec![1, 2, 3]
-    };
+fn serialize_byte() {
+    let nbt = ByteNbt { data: 100 };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x01,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x64,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct ShortNbt {
+    data: i16,
+}
+
+#[test]
+fn serialize_short() {
+    let nbt = ShortNbt { data: 12345 };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x02,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x30, 0x39,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct IntNbt {
+    data: i32,
+}
+
+#[test]
+fn serialize_int() {
+    let nbt = IntNbt { data: 100 };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x03,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x00, 0x00, 0x64,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct LongNbt {
+    data: i64,
+}
+
+#[test]
+fn serialize_long() {
+    let nbt = LongNbt { data: 100 };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x04,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct FloatNbt {
+    data: f32,
+}
+
+#[test]
+fn serialize_float() {
+    let nbt = FloatNbt { data: 20.0 };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x05,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x41, 0xa0, 0x00, 0x00,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct DoubleNbt {
+    data: f64,
+}
+
+#[test]
+fn serialize_double() {
+    let nbt = DoubleNbt { data: 20.0 };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x06,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x40, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct StringNbt {
+    data: String,
+}
+
+#[test]
+fn serialize_string() {
+    let nbt = StringNbt { data: "Herobrine".to_string() };
 
     let mut dst = Vec::new();
     nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
@@ -46,25 +176,30 @@ fn nbt_derive_basic_encoding() {
             0x00, 0x00,
             0x08,
                 0x00, 0x04,
-                0x6e, 0x61, 0x6d, 0x65,
+                0x64, 0x61, 0x74, 0x61,
                 0x00, 0x09,
                 0x48, 0x65, 0x72, 0x6f, 0x62, 0x72, 0x69, 0x6e, 0x65,
-            0x01,
-                0x00, 0x06,
-                0x68, 0x65, 0x61, 0x6c, 0x74, 0x68,
-                0x64,
-            0x05,
-                0x00, 0x04,
-                0x66, 0x6f, 0x6f, 0x64,
-                0x41, 0xa0, 0x00, 0x00,
-            0x02,
-                0x00, 0x08,
-                0x65, 0x6d, 0x65, 0x72, 0x61, 0x6c, 0x64, 0x73,
-                0x30, 0x39,
-            0x03,
-                0x00, 0x09,
-                0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
-                0x54, 0xec, 0x66, 0x16,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct BasicListNbt {
+    data: Vec<i8>,
+}
+
+#[test]
+fn serialize_basic_list() {
+    let nbt = BasicListNbt { data: vec![1, 2, 3] };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
             0x09,
                 0x00, 0x04,
                 0x64, 0x61, 0x74, 0x61,
@@ -73,13 +208,41 @@ fn nbt_derive_basic_encoding() {
                 0x01, 0x02, 0x03, // Content.
         0x00
     ];
-    
+
     assert_eq!(bytes, dst)
 }
 
+#[derive(Serialize)]
+struct BoolNbt {
+    data: bool,
+}
+
+#[test]
+fn serialize_bool() {
+    let nbt = BoolNbt { data: true };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x01,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x01,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct NewByteNbt(ByteNbt);
+
 #[test]
 fn serialize_newtype_struct() {
-    let nbt = NewSimple(Simple { data: 100 });
+    let nbt = NewByteNbt(ByteNbt { data: 100 });
 
     let mut dst = Vec::new();
     nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();

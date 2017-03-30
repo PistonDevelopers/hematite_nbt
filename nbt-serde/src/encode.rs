@@ -398,7 +398,6 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
 
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<()> {
-        try!(self.write_header(0x01));
         self.serialize_i8(v as i8)
     }
 
