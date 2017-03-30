@@ -303,7 +303,9 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Serializer<'b, W> where W: io::Wri
 
     #[inline]
     fn serialize_unit_struct(self, _: &'static str) -> Result<()> {
-        Err(Error::NoRootCompound)
+        let header = self.header; // Circumvent strange borrowing errors.
+        try!(self.write_header(0x0a, header));
+        close_nbt(&mut self.writer).map_err(From::from)
     }
 
     #[inline]
@@ -475,7 +477,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
 
     #[inline]
     fn serialize_none(self) -> Result<()> {
-        unimplemented!()
+        Ok(())
     }
 
     #[inline]
@@ -487,12 +489,13 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
 
     #[inline]
     fn serialize_unit(self) -> Result<()> {
-        unimplemented!()
+        Ok(())
     }
 
     #[inline]
     fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
-        unimplemented!()
+        try!(self.write_header(0x0a));
+        close_nbt(&mut self.outer.writer).map_err(From::from)
     }
 
     #[inline]

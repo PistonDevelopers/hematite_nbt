@@ -238,6 +238,89 @@ fn serialize_bool() {
 }
 
 #[derive(Serialize)]
+struct OptionNbt {
+    data: Option<i8>,
+}
+
+#[test]
+fn serialize_some() {
+    let nbt = OptionNbt { data: Some(100) };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x01,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x64,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[test]
+fn serialize_none() {
+    let nbt = OptionNbt { data: None };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            // Not included.
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct UnitNbt {
+    data: (),
+}
+
+#[test]
+fn serialize_unit() {
+    let nbt = UnitNbt { data: () };
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            // Not included.
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
+struct UnitStructNbt;
+
+#[test]
+fn serialize_unit_struct() {
+    let nbt = UnitStructNbt;
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst)
+}
+
+#[derive(Serialize)]
 struct NewByteNbt(ByteNbt);
 
 #[test]
