@@ -314,11 +314,11 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Serializer<'b, W> where W: io::Wri
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T)
+    fn serialize_newtype_struct<T: ?Sized>(self, _: &'static str, value: &T)
                                            -> Result<()>
         where T: ser::Serialize
     {
-        unimplemented!()
+        value.serialize(self)
     }
 
     #[inline]

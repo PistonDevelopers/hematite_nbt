@@ -18,6 +18,14 @@ struct Herobrine {
     timestamp: i32,
     data: Vec<i8>,
 }
+
+#[derive(Serialize)]
+struct Simple {
+    data: i8,
+}
+
+#[derive(Serialize)]
+struct NewSimple(Simple);
     
 #[test]
 fn nbt_derive_basic_encoding() {
@@ -66,5 +74,25 @@ fn nbt_derive_basic_encoding() {
         0x00
     ];
     
+    assert_eq!(bytes, dst)
+}
+
+#[test]
+fn serialize_newtype_struct() {
+    let nbt = NewSimple(Simple { data: 100 });
+
+    let mut dst = Vec::new();
+    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x01,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x64,
+        0x00
+    ];
+
     assert_eq!(bytes, dst)
 }
