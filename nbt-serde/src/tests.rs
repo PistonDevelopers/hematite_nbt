@@ -385,13 +385,13 @@ fn serialize_newtype_struct() {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct NestedNbt{
+struct NestedByteNbt {
     data: ByteNbt,
 }
 
 #[test]
 fn serialize_nested() {
-    let nbt = NestedNbt { data: ByteNbt { data: 100 } };
+    let nbt = NestedByteNbt { data: ByteNbt { data: 100 } };
 
     let mut dst = Vec::new();
     to_writer(&mut dst, &nbt, None).unwrap();
@@ -412,6 +412,67 @@ fn serialize_nested() {
 
     assert_eq!(bytes, dst);
 
-    let read: NestedNbt = from_reader(&bytes[..]).unwrap();
+    let read: NestedByteNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct NestedUnitStructNbt {
+    data: UnitStructNbt,
+}
+
+#[test]
+fn serialize_nested_unit_struct() {
+    let nbt = NestedUnitStructNbt { data: UnitStructNbt };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &nbt, None).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x0a,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                // No content.
+            0x00,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst);
+
+    let read: NestedUnitStructNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct NestedNewByteNbt {
+    data: NewByteNbt,
+}
+
+#[test]
+fn serialize_nested_newtype_struct() {
+    let nbt = NestedNewByteNbt { data: NewByteNbt(ByteNbt { data: 100 }) };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &nbt, None).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x0a,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x01,
+                    0x00, 0x04,
+                    0x64, 0x61, 0x74, 0x61,
+                    0x64,
+            0x00,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst);
+
+    let read: NestedNewByteNbt = from_reader(&bytes[..]).unwrap();
     assert_eq!(read, nbt)
 }

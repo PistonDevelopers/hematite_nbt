@@ -162,10 +162,25 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
         visitor.visit_unit()
     }
 
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V)
+                                  -> Result<V::Value>
+        where V: de::Visitor
+    {
+        visitor.visit_unit()
+    }
+
+    /// Deserialize newtype structs by their underlying types.
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V)
+                                     -> Result<V::Value>
+        where V: de::Visitor
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     forward_to_deserialize! {
         u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char
-        str string bytes byte_buf unit_struct seq seq_fixed_size map
-        tuple_struct struct struct_field tuple enum newtype_struct
+        str string bytes byte_buf seq seq_fixed_size map
+        tuple_struct struct struct_field tuple enum
         ignored_any
     }
 }
