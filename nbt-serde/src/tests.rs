@@ -5,9 +5,7 @@ extern crate serde;
 extern crate nbt;
 extern crate nbt_serde;
 
-use serde::Serialize;
-
-use nbt_serde::encode::Serializer;
+use nbt_serde::encode::to_writer;
 
 #[derive(Serialize)]
 struct ByteNbt {
@@ -19,7 +17,7 @@ fn serialize_byte() {
     let nbt = ByteNbt { data: 100 };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -44,7 +42,7 @@ fn serialize_short() {
     let nbt = ShortNbt { data: 12345 };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -69,7 +67,7 @@ fn serialize_int() {
     let nbt = IntNbt { data: 100 };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -94,7 +92,7 @@ fn serialize_long() {
     let nbt = LongNbt { data: 100 };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -119,7 +117,7 @@ fn serialize_float() {
     let nbt = FloatNbt { data: 20.0 };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -144,7 +142,7 @@ fn serialize_double() {
     let nbt = DoubleNbt { data: 20.0 };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -169,7 +167,7 @@ fn serialize_string() {
     let nbt = StringNbt { data: "Herobrine".to_string() };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -195,7 +193,7 @@ fn serialize_basic_list() {
     let nbt = BasicListNbt { data: vec![1, 2, 3] };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -222,7 +220,7 @@ fn serialize_bool() {
     let nbt = BoolNbt { data: true };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -247,7 +245,7 @@ fn serialize_some() {
     let nbt = OptionNbt { data: Some(100) };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -267,7 +265,7 @@ fn serialize_none() {
     let nbt = OptionNbt { data: None };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -289,7 +287,7 @@ fn serialize_unit() {
     let nbt = UnitNbt { data: () };
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -309,7 +307,7 @@ fn serialize_unit_struct() {
     let nbt = UnitStructNbt;
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -328,7 +326,7 @@ fn serialize_newtype_struct() {
     let nbt = NewByteNbt(ByteNbt { data: 100 });
 
     let mut dst = Vec::new();
-    nbt.serialize(&mut Serializer::new(&mut dst, None)).ok().unwrap();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,

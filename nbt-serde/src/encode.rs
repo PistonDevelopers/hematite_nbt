@@ -8,21 +8,43 @@ use nbt::serialize::raw;
 
 use error::{Error, Result};
 
-pub struct Serializer<'a, W> {
+/// Encode `value` in Named Binary Tag format to the given `io::Write`
+/// destination, with an optional header.
+#[inline]
+pub fn to_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
+                           -> Result<()>
+    where W: ?Sized + io::Write,
+          T: ?Sized + ser::Serialize,
+{
+    let mut encoder = Encoder::new(dst, header);
+    value.serialize(&mut encoder)
+}
+
+/// Encode objects to Named Binary Tag format.
+///
+/// This structure can be used to serialize objects which implement the
+/// `serde::Serialize` trait into NBT format. Note that not all types are
+/// representable in NBT format (notably unsigned integers), so this encoder may
+/// return errors.
+pub struct Encoder<'a, W> {
     writer: W,
     header: Option<&'a str>,
 }
 
-impl<'a, W> Serializer<'a, W> where W: io::Write {
+impl<'a, W> Encoder<'a, W> where W: io::Write {
+
+    /// Create an encoder with optional `header` from a given Writer.
     pub fn new(writer: W, header: Option<&'a str>) -> Self {
-        Serializer { writer: writer, header: header }
+        Encoder { writer: writer, header: header }
     }
 
+    /// Consume this encoder and return the underlying writer.
     #[inline]
     pub fn into_inner(self) -> W {
         self.writer
     }
 
+    /// Write the NBT tag and an optional header to the underlying writer.
     #[inline]
     fn write_header(&mut self, tag: i8, header: Option<&str>) -> Result<()> {
         try!(raw::write_bare_byte(&mut self.writer, tag));
@@ -42,12 +64,13 @@ enum State<'a> {
     Bare,
 }
 
-struct InnerSerializer<'a, 'b: 'a, W: 'a> {
-    outer: &'a mut Serializer<'b, W>,
+/// "Inner" version of the NBT encoder, capable of serializing bare types.
+struct InnerEncoder<'a, 'b: 'a, W: 'a> {
+    outer: &'a mut Encoder<'b, W>,
     state: State<'a>,
 }
 
-impl<'a, 'b, W> InnerSerializer<'a, 'b, W> where W: io::Write {
+impl<'a, 'b, W> InnerEncoder<'a, 'b, W> where W: io::Write {
     fn write_header(&mut self, tag: i8) -> Result<()> {
         match self.state {
             State::Bare          => Ok(()),
@@ -62,8 +85,9 @@ impl<'a, 'b, W> InnerSerializer<'a, 'b, W> where W: io::Write {
     }
 }
 
+#[doc(hidden)]
 pub struct Compound<'a, 'b: 'a, W: 'a> {
-    outer: &'a mut Serializer<'b, W>,
+    outer: &'a mut Encoder<'b, W>,
     state: State<'b>,
 }
 
@@ -76,7 +100,7 @@ impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
         where T: serde::Serialize
     {
-        let mut ser = InnerSerializer {
+        let mut ser = InnerEncoder {
             outer: self.outer,
             state: self.state.clone()
         };
@@ -174,7 +198,7 @@ impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
                                   -> Result<()>
         where T: serde::Serialize
     {
-        value.serialize(&mut InnerSerializer {
+        value.serialize(&mut InnerEncoder {
             outer: self.outer,
             state: State::Named(key)
         })
@@ -203,7 +227,7 @@ impl<'a, 'b, W> ser::SerializeStructVariant for Compound<'a, 'b, W>
     }
 }
 
-impl<'a, 'b, W> serde::Serializer for &'a mut Serializer<'b, W> where W: io::Write {
+impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write {
     type Ok = ();
     type Error = Error;
     type SerializeSeq = ser::Impossible<(), Error>;
@@ -387,7 +411,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Serializer<'b, W> where W: io::Wri
     }
 }
 
-impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W: io::Write {
+impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: io::Write {
     type Ok = ();
     type Error = Error;
     type SerializeSeq = Compound<'a, 'b, W>;
@@ -566,7 +590,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerSerializer<'a, 'b, W> where W
     }
 
     #[inline]
-    fn serialize_struct(self, name: &'static str, len: usize)
+    fn serialize_struct(self, _: &'static str, _: usize)
                         -> Result<Self::SerializeStruct>
     {
         try!(self.write_header(0x0a));
