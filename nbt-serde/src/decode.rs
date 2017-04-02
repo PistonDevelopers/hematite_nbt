@@ -134,6 +134,48 @@ impl<'a, R: io::Read + 'a> de::MapVisitor for MapDecoder<'a, R> {
     }
 }
 
+/// Decoder for list-like types.
+struct SeqDecoder<'a, R: io::Read + 'a> {
+    outer: &'a mut Decoder<R>,
+    tag: u8,
+    length: i32,
+    current: i32,
+}
+
+impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
+
+    fn new(outer: &'a mut Decoder<R>) -> Result<Self> {
+        let tag = try!(raw::read_bare_byte(&mut outer.reader));
+        let length = try!(raw::read_bare_int(&mut outer.reader));
+        Ok(SeqDecoder { outer: outer, tag: tag as u8, length: length,
+                        current: 0 })
+    }
+}
+
+impl<'a, R: io::Read + 'a> de::SeqVisitor for SeqDecoder<'a, R> {
+    type Error = Error;
+
+    fn visit_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+        where K: de::DeserializeSeed
+    {
+        if self.current == self.length {
+            return Ok(None);
+        }
+
+        let mut de = InnerDecoder { outer: self.outer, tag: self.tag };
+        let value = try!(seed.deserialize(&mut de));
+
+        self.current += 1;
+
+        Ok(Some(value))
+    }
+
+    /// We always know the length of an NBT list in advance.
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.length as usize, Some(self.length as usize))
+    }
+}
+
 /// Private inner decoder, for decoding raw (i.e. non-Compound) types.
 struct InnerDecoder<'a, R: io::Read + 'a> {
     outer: &'a mut Decoder<R>,
@@ -157,7 +199,7 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
             0x06 => visitor.visit_f64(raw::read_bare_double(&mut outer.reader)?),
             0x07 => unimplemented!(), // Byte array.
             0x08 => visitor.visit_string(raw::read_bare_string(&mut outer.reader)?),
-            0x09 => unimplemented!(), // List.
+            0x09 => visitor.visit_seq(SeqDecoder::new(outer)?),
             0x0a => visitor.visit_map(MapDecoder::new(outer)),
             0x0b => unimplemented!(), // Int array.
             _    => unimplemented!(),
