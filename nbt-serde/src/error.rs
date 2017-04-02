@@ -41,3 +41,9 @@ impl serde::ser::Error for Error {
         unimplemented!()
     }
 }
+
+impl serde::de::Error for Error {
+    fn custom<T: fmt::Display>(msg: T) -> Error {
+        unimplemented!()
+    }
+}

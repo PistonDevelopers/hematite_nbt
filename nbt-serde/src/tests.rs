@@ -6,8 +6,9 @@ extern crate nbt;
 extern crate nbt_serde;
 
 use nbt_serde::encode::to_writer;
+use nbt_serde::decode::from_reader;
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct ByteNbt {
     data: i8,
 }
@@ -29,10 +30,13 @@ fn serialize_byte() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: ByteNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct ShortNbt {
     data: i16,
 }
@@ -54,10 +58,13 @@ fn serialize_short() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: ShortNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct IntNbt {
     data: i32,
 }
@@ -79,10 +86,13 @@ fn serialize_int() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: IntNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct LongNbt {
     data: i64,
 }
@@ -104,10 +114,13 @@ fn serialize_long() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: LongNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct FloatNbt {
     data: f32,
 }
@@ -129,10 +142,13 @@ fn serialize_float() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: FloatNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct DoubleNbt {
     data: f64,
 }
@@ -154,10 +170,13 @@ fn serialize_double() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: DoubleNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct StringNbt {
     data: String,
 }
@@ -180,10 +199,13 @@ fn serialize_string() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: StringNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct BasicListNbt {
     data: Vec<i8>,
 }
@@ -207,10 +229,13 @@ fn serialize_basic_list() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct BoolNbt {
     data: bool,
 }
@@ -232,10 +257,13 @@ fn serialize_bool() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: BoolNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct OptionNbt {
     data: Option<i8>,
 }
@@ -257,7 +285,10 @@ fn serialize_some() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: OptionNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
 #[test]
@@ -274,10 +305,13 @@ fn serialize_none() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: OptionNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct UnitNbt {
     data: (),
 }
@@ -296,10 +330,13 @@ fn serialize_unit() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: UnitNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct UnitStructNbt;
 
 #[test]
@@ -315,10 +352,13 @@ fn serialize_unit_struct() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: UnitStructNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct NewByteNbt(ByteNbt);
 
 #[test]
@@ -338,5 +378,8 @@ fn serialize_newtype_struct() {
         0x00
     ];
 
-    assert_eq!(bytes, dst)
+    assert_eq!(bytes, dst);
+
+    let read: NewByteNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
 }
