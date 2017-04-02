@@ -383,3 +383,35 @@ fn serialize_newtype_struct() {
     let read: NewByteNbt = from_reader(&bytes[..]).unwrap();
     assert_eq!(read, nbt)
 }
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct NestedNbt{
+    data: ByteNbt,
+}
+
+#[test]
+fn serialize_nested() {
+    let nbt = NestedNbt { data: ByteNbt { data: 100 } };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &nbt, None).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x0a,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x01,
+                    0x00, 0x04,
+                    0x64, 0x61, 0x74, 0x61,
+                    0x64,
+            0x00,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst);
+
+    let read: NestedNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
