@@ -88,11 +88,7 @@ impl<'a, R: io::Read> de::Deserializer for &'a mut Decoder<R> {
     }
 }
 
-struct InnerDecoder<'a, R: io::Read + 'a> {
-    outer: &'a mut Decoder<R>,
-    tag: u8,
-}
-
+/// Decoder for map-like types.
 struct MapDecoder<'a, R: io::Read + 'a> {
     outer: &'a mut Decoder<R>,
     tag: Option<u8>,
@@ -103,6 +99,45 @@ impl<'a, R> MapDecoder<'a, R> where R: io::Read {
     fn new(outer: &'a mut Decoder<R>) -> Self {
         MapDecoder { outer: outer, tag: None }
     }
+}
+
+impl<'a, R: io::Read + 'a> de::MapVisitor for MapDecoder<'a, R> {
+    type Error = Error;
+
+    fn visit_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+        where K: de::DeserializeSeed
+    {
+        let tag = try!(raw::read_bare_byte(&mut self.outer.reader));
+
+        // NBT indicates the end of a compound type with a 0x00 tag.
+        if tag == 0x00 {
+            return Ok(None);
+        }
+
+        // Keep track of the tag so that we can decode the field correctly.
+        self.tag = Some(tag as u8);
+
+        // TODO: Enforce that keys must be String. This is a bit of a hack.
+        let mut de = InnerDecoder { outer: self.outer, tag: 0x08 };
+
+        Ok(Some(seed.deserialize(&mut de)?))
+    }
+
+    fn visit_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+        where V: de::DeserializeSeed
+    {
+        let mut de = match self.tag {
+            Some(tag) => InnerDecoder { outer: self.outer, tag: tag },
+            None => unimplemented!(),
+        };
+        Ok(seed.deserialize(&mut de)?)
+    }
+}
+
+/// Private inner decoder, for decoding raw (i.e. non-Compound) types.
+struct InnerDecoder<'a, R: io::Read + 'a> {
+    outer: &'a mut Decoder<R>,
+    tag: u8,
 }
 
 impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
@@ -182,38 +217,5 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
         str string bytes byte_buf seq seq_fixed_size map
         tuple_struct struct struct_field tuple enum
         ignored_any
-    }
-}
-
-impl<'a, R: io::Read + 'a> de::MapVisitor for MapDecoder<'a, R> {
-    type Error = Error;
-
-    fn visit_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
-        where K: de::DeserializeSeed
-    {
-        let tag = try!(raw::read_bare_byte(&mut self.outer.reader));
-
-        // NBT indicates the end of a compound type with a 0x00 tag.
-        if tag == 0x00 {
-            return Ok(None);
-        }
-
-        // Keep track of the tag so that we can decode the field correctly.
-        self.tag = Some(tag as u8);
-
-        // TODO: Enforce that keys must be String. This is a bit of a hack.
-        let mut de = InnerDecoder { outer: self.outer, tag: 0x08 };
-
-        Ok(Some(seed.deserialize(&mut de)?))
-    }
-
-    fn visit_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
-        where V: de::DeserializeSeed
-    {
-        let mut de = match self.tag {
-            Some(tag) => InnerDecoder { outer: self.outer, tag: tag },
-            None => unimplemented!(),
-        };
-        Ok(seed.deserialize(&mut de)?)
     }
 }
