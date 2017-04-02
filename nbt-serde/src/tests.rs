@@ -235,6 +235,52 @@ fn serialize_basic_list() {
     assert_eq!(read, nbt)
 }
 
+#[test]
+fn deserialize_byte_array() {
+    let nbt = BasicListNbt { data: vec![1, 2, 3] };
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x07,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x00, 0x00, 0x03, // Length.
+                0x01, 0x02, 0x03, // Content.
+        0x00
+    ];
+
+    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct IntListNbt {
+    data: Vec<i32>,
+}
+
+#[test]
+fn deserialize_int_array() {
+    let nbt = IntListNbt { data: vec![1, 2, 3] };
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x0b,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x00, 0x00, 0x03, // Length.
+                // Content.
+                0x00, 0x00, 0x00, 0x01,
+                0x00, 0x00, 0x00, 0x02,
+                0x00, 0x00, 0x00, 0x03,
+        0x00
+    ];
+
+    let read: IntListNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct BoolNbt {
     data: bool,

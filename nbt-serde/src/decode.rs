@@ -144,10 +144,22 @@ struct SeqDecoder<'a, R: io::Read + 'a> {
 
 impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
 
-    fn new(outer: &'a mut Decoder<R>) -> Result<Self> {
+    fn list(outer: &'a mut Decoder<R>) -> Result<Self> {
         let tag = try!(raw::read_bare_byte(&mut outer.reader));
         let length = try!(raw::read_bare_int(&mut outer.reader));
         Ok(SeqDecoder { outer: outer, tag: tag as u8, length: length,
+                        current: 0 })
+    }
+
+    fn byte_array(outer: &'a mut Decoder<R>) -> Result<Self> {
+        let length = try!(raw::read_bare_int(&mut outer.reader));
+        Ok(SeqDecoder { outer: outer, tag: 0x01, length: length,
+                        current: 0 })
+    }
+
+    fn int_array(outer: &'a mut Decoder<R>) -> Result<Self> {
+        let length = try!(raw::read_bare_int(&mut outer.reader));
+        Ok(SeqDecoder { outer: outer, tag: 0x03, length: length,
                         current: 0 })
     }
 }
@@ -197,11 +209,12 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
             0x04 => visitor.visit_i64(raw::read_bare_long(&mut outer.reader)?),
             0x05 => visitor.visit_f32(raw::read_bare_float(&mut outer.reader)?),
             0x06 => visitor.visit_f64(raw::read_bare_double(&mut outer.reader)?),
-            0x07 => unimplemented!(), // Byte array.
+            0x07 => visitor.visit_seq(SeqDecoder::byte_array(outer)?),
             0x08 => visitor.visit_string(raw::read_bare_string(&mut outer.reader)?),
-            0x09 => visitor.visit_seq(SeqDecoder::new(outer)?),
+            0x09 => visitor.visit_seq(SeqDecoder::list(outer)?),
             0x0a => visitor.visit_map(MapDecoder::new(outer)),
-            0x0b => unimplemented!(), // Int array.
+            0x0b => visitor.visit_seq(SeqDecoder::int_array(outer)?),
+            // FIXME: Handle unknown tags.
             _    => unimplemented!(),
         }
     }
