@@ -363,6 +363,7 @@ struct UnitNbt {
 }
 
 #[test]
+#[ignore]
 fn serialize_unit() {
     let nbt = UnitNbt { data: () };
 
