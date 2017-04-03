@@ -241,8 +241,7 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
             0x09 => visitor.visit_seq(SeqDecoder::list(outer)?),
             0x0a => visitor.visit_map(MapDecoder::new(outer)),
             0x0b => visitor.visit_seq(SeqDecoder::int_array(outer)?),
-            // FIXME: Handle unknown tags.
-            _    => unimplemented!(),
+            t => Err(Error::UnknownTag(t)),
         }
     }
 
@@ -257,12 +256,10 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
                 match value {
                     0 => visitor.visit_bool(false),
                     1 => visitor.visit_bool(true),
-                    // FIXME: Handle non-conforming bool values.
-                    _ => unimplemented!(),
+                    b => Err(Error::NonBooleanByte(b)),
                 }
             },
-            // FIXME: Handle mismatched tags.
-            _ => unimplemented!(),
+            _ => Err(Error::UnexpectedTag(self.tag, 0x01)),
         }
     }
 

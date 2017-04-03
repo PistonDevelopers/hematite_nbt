@@ -1,25 +1,47 @@
 use std::error;
 use std::fmt;
 use std::io;
-use std::result::Result as StdResult;
+use std::result;
 
 use serde;
 use nbt;
 
-pub type Result<T> = StdResult<T, Error>;
+pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
     Nbt(nbt::Error),
     Io(io::Error),
+    Serde(String),
     NoRootCompound,
+    UnknownTag(u8),
+    NonBooleanByte(i8),
+    UnexpectedTag(u8, u8),
     UnrepresentableType(&'static str),
-    Message(String),
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> StdResult<(), fmt::Error> {
-        error::Error::description(self).fmt(f)
+    fn fmt(&self, f: &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
+        match *self {
+            Error::Nbt(ref err) => fmt::Display::fmt(err, f),
+            Error::Io(ref err) => fmt::Display::fmt(err, f),
+            Error::Serde(ref msg) => f.write_str(msg),
+            Error::NoRootCompound => {
+                f.write_str("all values must have a root compound")
+            },
+            Error::UnknownTag(t) => {
+                write!(f, "unknown tag: {}", t)
+            },
+            Error::NonBooleanByte(b) => {
+                write!(f, "boolean bytes must be 0 or 1, found {}", b)
+            },
+            Error::UnexpectedTag(a, b) => {
+                write!(f, "unexpected tag: {}, expecting: {}", a, b)
+            },
+            Error::UnrepresentableType(t) => {
+                write!(f, "cannot represent {} in NBT format", t)
+            },
+        }
     }
 }
 
@@ -38,23 +60,27 @@ impl From<io::Error> for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::Nbt(_) => "NBT error",
             Error::Io(_) => "IO error",
-            Error::NoRootCompound => "no root compound",
+            Error::Nbt(_) => "NBT error",
+            Error::Serde(ref msg) => &msg[..],
+            Error::NoRootCompound => "all values must have a root compound",
+            Error::UnknownTag(_) => "unknown tag",
+            Error::NonBooleanByte(_) =>
+                "encountered a non-0 or 1 byte for a boolean",
+            Error::UnexpectedTag(_, _) => "unexpected tag",
             Error::UnrepresentableType(_) => "unrepresentable type",
-            Error::Message(ref msg) => &msg[..],
         }
     }
 }
 
 impl serde::ser::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Error {
-        Error::Message(msg.to_string())
+        Error::Serde(msg.to_string())
     }
 }
 
 impl serde::de::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Error {
-        Error::Message(msg.to_string())
+        Error::Serde(msg.to_string())
     }
 }
