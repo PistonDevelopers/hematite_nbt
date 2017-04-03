@@ -244,26 +244,33 @@ fn deserialize_big1() {
 
 mod bench {
     use std::io;
+    use std::io::Read;
+
     use test::Bencher;
+
     use nbt_serde::encode::to_writer;
-    // use serde::Serialize;
+
     use super::*;
 
     #[bench]
-    #[ignore]
     fn deserialize_big1_as_struct(b: &mut Bencher) {
+        let mut file = File::open("../tests/big1.nbt").unwrap();
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
         b.iter(|| {
-            let mut file = File::open("../tests/big1.nbt").unwrap();
-            let _: Big1 = from_gzip(&mut file).unwrap();
+            let mut src = std::io::Cursor::new(&contents[..]);
+            let _: Big1 = from_gzip(&mut src).unwrap();
         });
     }
 
     #[bench]
-    #[ignore]
     fn deserialize_big1_as_blob(b: &mut Bencher) {
+        let mut file = File::open("../tests/big1.nbt").unwrap();
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
         b.iter(|| {
-            let mut file = File::open("../tests/big1.nbt").unwrap();
-            nbt::Blob::from_gzip(&mut file).unwrap();
+            let mut src = std::io::Cursor::new(&contents[..]);
+            nbt::Blob::from_gzip(&mut src).unwrap();
         });
     }
     
