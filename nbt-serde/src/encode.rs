@@ -114,69 +114,20 @@ impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
     }
 }
 
-impl<'a, 'b, W> ser::SerializeTuple for Compound<'a, 'b, W>
-    where W: io::Write
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
-        where T: serde::Serialize
-    {
-        unimplemented!();
-    }
-
-    fn end(self) -> Result<()> {
-        unimplemented!();
-    }
-}
-
-impl<'a, 'b, W> ser::SerializeTupleStruct for Compound<'a, 'b, W>
-    where W: io::Write
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
-        where T: serde::Serialize
-    {
-        unimplemented!();
-    }
-
-    fn end(self) -> Result<()> {
-        unimplemented!();
-    }
-}
-
-impl<'a, 'b, W> ser::SerializeTupleVariant for Compound<'a, 'b, W>
-    where W: io::Write
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
-        where T: serde::Serialize
-    {
-        unimplemented!();
-    }
-
-    fn end(self) -> Result<()> {
-        unimplemented!();
-    }
-}
-
 impl<'a, 'b, W> ser::SerializeMap for Compound<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
     type Error = Error;
 
+    #[allow(unused_variables)]
     fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
         where T: serde::Serialize
     {
         unimplemented!();
     }
 
+    #[allow(unused_variables)]
     fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
         where T: serde::Serialize
     {
@@ -209,24 +160,6 @@ impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
     }
 }
 
-impl<'a, 'b, W> ser::SerializeStructVariant for Compound<'a, 'b, W>
-    where W: io::Write
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
-                                  -> Result<()>
-        where T: serde::Serialize
-    {
-        unimplemented!();
-    }
-
-    fn end(self) -> Result<()> {
-        unimplemented!();
-    }
-}
-
 impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write {
     type Ok = ();
     type Error = Error;
@@ -236,75 +169,75 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     type SerializeTupleVariant = ser::Impossible<(), Error>;
     type SerializeMap = Compound<'a, 'b, W>;
     type SerializeStruct = Compound<'a, 'b, W>;
-    type SerializeStructVariant = Compound<'a, 'b, W>;
+    type SerializeStructVariant = ser::Impossible<(), Error>;
 
     #[inline]
-    fn serialize_bool(self, _: bool) -> Result<()> {
+    fn serialize_bool(self, _value: bool) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_i8(self, _: i8) -> Result<()> {
+    fn serialize_i8(self, _value: i8) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_i16(self, _: i16) -> Result<()> {
+    fn serialize_i16(self, _value: i16) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_i32(self, _: i32) -> Result<()> {
+    fn serialize_i32(self, _value: i32) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_i64(self, _: i64) -> Result<()> {
+    fn serialize_i64(self, _value: i64) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_u8(self, _: u8) -> Result<()> {
+    fn serialize_u8(self, _value: u8) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_u16(self, _: u16) -> Result<()> {
+    fn serialize_u16(self, _value: u16) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_u32(self, _: u32) -> Result<()> {
+    fn serialize_u32(self, _value: u32) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_u64(self, _: u64) -> Result<()> {
+    fn serialize_u64(self, _value: u64) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_f32(self, _: f32) -> Result<()> {
+    fn serialize_f32(self, _value: f32) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_f64(self, _: f64) -> Result<()> {
+    fn serialize_f64(self, _value: f64) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_char(self, _: char) -> Result<()> {
+    fn serialize_char(self, _value: char) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_str(self, _: &str) -> Result<()> {
+    fn serialize_str(self, _value: &str) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_bytes(self, _: &[u8]) -> Result<()> {
+    fn serialize_bytes(self, _value: &[u8]) -> Result<()> {
         Err(Error::NoRootCompound)
     }
 
@@ -314,7 +247,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     }
 
     #[inline]
-    fn serialize_some<T: ?Sized>(self, _: &T) -> Result<()>
+    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<()>
         where T: ser::Serialize
     {
         Err(Error::NoRootCompound)
@@ -326,21 +259,21 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     }
 
     #[inline]
-    fn serialize_unit_struct(self, _: &'static str) -> Result<()> {
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         let header = self.header; // Circumvent strange borrowing errors.
         try!(self.write_header(0x0a, header));
         close_nbt(&mut self.writer).map_err(From::from)
     }
 
     #[inline]
-    fn serialize_unit_variant(self, _: &'static str, _: usize,
-                              _: &'static str) -> Result<()>
+    fn serialize_unit_variant(self, _name: &'static str, _index: usize,
+                              _variant: &'static str) -> Result<()>
     {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, _: &'static str, value: &T)
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T)
                                            -> Result<()>
         where T: ser::Serialize
     {
@@ -348,6 +281,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn serialize_newtype_variant<T: ?Sized>(self, name: &'static str,
                                             variant_index: usize,
                                             variant: &'static str,
@@ -358,43 +292,45 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     }
 
     #[inline]
-    fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq> {
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_seq_fixed_size(self, _: usize) -> Result<Self::SerializeSeq>
+    fn serialize_seq_fixed_size(self, _len: usize)
+                                -> Result<Self::SerializeSeq>
     {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple> {
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_tuple_struct(self, _: &'static str, _: usize)
+    fn serialize_tuple_struct(self, _name: &'static str, _len: usize)
                               -> Result<Self::SerializeTupleStruct>
     {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
-    fn serialize_tuple_variant(self, _: &'static str, _: usize,
-                               _: &'static str, _: usize)
+    fn serialize_tuple_variant(self, _name: &'static str, _index: usize,
+                               _variant: &'static str, _len: usize)
                                -> Result<Self::SerializeTupleVariant>
     {
         Err(Error::NoRootCompound)
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         unimplemented!()
     }
 
     #[inline]
-    fn serialize_struct(self, _: &'static str, _: usize)
+    fn serialize_struct(self, _name: &'static str, _len: usize)
                         -> Result<Self::SerializeStruct>
     {
         let header = self.header; // Circumvent strange borrowing errors.
@@ -403,6 +339,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn serialize_struct_variant(self, name: &'static str, variant_index: usize,
                                 variant: &'static str, len: usize)
                                 -> Result<Self::SerializeStructVariant>
@@ -415,86 +352,95 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     type Ok = ();
     type Error = Error;
     type SerializeSeq = Compound<'a, 'b, W>;
-    type SerializeTuple = Compound<'a, 'b, W>;
-    type SerializeTupleStruct = Compound<'a, 'b, W>;
-    type SerializeTupleVariant = Compound<'a, 'b, W>;
+    type SerializeTuple = ser::Impossible<(), Error>;
+    type SerializeTupleStruct = ser::Impossible<(), Error>;
+    type SerializeTupleVariant = ser::Impossible<(), Error>;
     type SerializeMap = Compound<'a, 'b, W>;
     type SerializeStruct = Compound<'a, 'b, W>;
-    type SerializeStructVariant = Compound<'a, 'b, W>;
+    type SerializeStructVariant = ser::Impossible<(), Error>;
 
     #[inline]
-    fn serialize_bool(self, v: bool) -> Result<()> {
-        self.serialize_i8(v as i8)
+    fn serialize_bool(self, value: bool) -> Result<()> {
+        self.serialize_i8(value as i8)
     }
 
     #[inline]
-    fn serialize_i8(self, v: i8) -> Result<()> {
+    fn serialize_i8(self, value: i8) -> Result<()> {
         try!(self.write_header(0x01));
-        raw::write_bare_byte(&mut self.outer.writer, v).map_err(From::from)
+        raw::write_bare_byte(&mut self.outer.writer, value)
+            .map_err(From::from)
     }
 
     #[inline]
-    fn serialize_i16(self, v: i16) -> Result<()> {
+    fn serialize_i16(self, value: i16) -> Result<()> {
         try!(self.write_header(0x02));
-        raw::write_bare_short(&mut self.outer.writer, v).map_err(From::from)
+        raw::write_bare_short(&mut self.outer.writer, value)
+            .map_err(From::from)
     }
 
     #[inline]
-    fn serialize_i32(self, v: i32) -> Result<()> {
+    fn serialize_i32(self, value: i32) -> Result<()> {
         try!(self.write_header(0x03));
-        raw::write_bare_int(&mut self.outer.writer, v).map_err(From::from)
+        raw::write_bare_int(&mut self.outer.writer, value)
+            .map_err(From::from)
     }
 
     #[inline]
-    fn serialize_i64(self, v: i64) -> Result<()> {
+    fn serialize_i64(self, value: i64) -> Result<()> {
         try!(self.write_header(0x04));
-        raw::write_bare_long(&mut self.outer.writer, v).map_err(From::from)
+        raw::write_bare_long(&mut self.outer.writer, value)
+            .map_err(From::from)
     }
 
     #[inline]
-    fn serialize_u8(self, _: u8) -> Result<()> {
+    fn serialize_u8(self, _value: u8) -> Result<()> {
         Err(Error::UnrepresentableType("u8"))
     }
 
     #[inline]
-    fn serialize_u16(self, _: u16) -> Result<()> {
+    fn serialize_u16(self, _value: u16) -> Result<()> {
         Err(Error::UnrepresentableType("u16"))
     }
 
     #[inline]
-    fn serialize_u32(self, _: u32) -> Result<()> {
+    fn serialize_u32(self, _value: u32) -> Result<()> {
         Err(Error::UnrepresentableType("u32"))
     }
 
     #[inline]
-    fn serialize_u64(self, _: u64) -> Result<()> {
+    fn serialize_u64(self, _value: u64) -> Result<()> {
         Err(Error::UnrepresentableType("u64"))
     }
 
     #[inline]
-    fn serialize_f32(self, v: f32) -> Result<()> {
+    fn serialize_f32(self, value: f32) -> Result<()> {
         try!(self.write_header(0x05));
-        raw::write_bare_float(&mut self.outer.writer, v).map_err(From::from)
+        raw::write_bare_float(&mut self.outer.writer, value)
+            .map_err(From::from)
     }
 
     #[inline]
-    fn serialize_f64(self, v: f64) -> Result<()> {
+    fn serialize_f64(self, value: f64) -> Result<()> {
         try!(self.write_header(0x06));
-        raw::write_bare_double(&mut self.outer.writer, v).map_err(From::from)
+        raw::write_bare_double(&mut self.outer.writer, value)
+            .map_err(From::from)
     }
 
     #[inline]
-    fn serialize_char(self, v: char) -> Result<()> {
+    #[allow(unused_variables)]
+    fn serialize_char(self, value: char) -> Result<()> {
         unimplemented!()
     }
 
     #[inline]
-    fn serialize_str(self, v: &str) -> Result<()> {
+    fn serialize_str(self, value: &str) -> Result<()> {
         try!(self.write_header(0x08));
-        raw::write_bare_string(&mut self.outer.writer, v).map_err(From::from)
+        raw::write_bare_string(&mut self.outer.writer, value)
+            .map_err(From::from)
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn serialize_bytes(self, value: &[u8]) -> Result<()> {
         unimplemented!()
     }
@@ -517,12 +463,13 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         try!(self.write_header(0x0a));
         close_nbt(&mut self.outer.writer).map_err(From::from)
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn serialize_unit_variant(self, name: &'static str, variant_index: usize,
                               variant: &'static str) -> Result<()>
     {
@@ -530,7 +477,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, _: &'static str, value: &T)
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T)
                                            -> Result<()>
         where T: ser::Serialize
     {
@@ -538,6 +485,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn serialize_newtype_variant<T: ?Sized>(self, name: &'static str,
                                             variant_index: usize,
                                             variant: &'static str,
@@ -565,32 +513,33 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        unimplemented!()
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
+        Err(Error::UnrepresentableType("tuple"))
     }
 
     #[inline]
-    fn serialize_tuple_struct(self, name: &'static str, len: usize)
+    fn serialize_tuple_struct(self, _name: &'static str, _len: usize)
                               -> Result<Self::SerializeTupleStruct>
     {
-        unimplemented!()
+        Err(Error::UnrepresentableType("tuple struct"))
     }
 
     #[inline]
-    fn serialize_tuple_variant(self, name: &'static str, variant_index: usize,
-                               variant: &'static str, len: usize)
+    fn serialize_tuple_variant(self, _name: &'static str, _index: usize,
+                               _variant: &'static str, _len: usize)
                                -> Result<Self::SerializeTupleVariant>
     {
-        unimplemented!()
+        Err(Error::UnrepresentableType("tuple variant"))
     }
 
     #[inline]
+    #[allow(unused_variables)]
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         unimplemented!()
     }
 
     #[inline]
-    fn serialize_struct(self, _: &'static str, _: usize)
+    fn serialize_struct(self, _name: &'static str, _len: usize)
                         -> Result<Self::SerializeStruct>
     {
         try!(self.write_header(0x0a));
@@ -598,10 +547,10 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_struct_variant(self, name: &'static str, variant_index: usize,
-                                variant: &'static str, len: usize)
+    fn serialize_struct_variant(self, _name: &'static str, _index: usize,
+                                _variant: &'static str, _len: usize)
                                 -> Result<Self::SerializeStructVariant>
     {
-        unimplemented!()
+        Err(Error::UnrepresentableType("struct variant"))
     }
 }

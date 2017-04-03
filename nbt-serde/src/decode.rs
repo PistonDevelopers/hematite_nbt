@@ -27,7 +27,7 @@ pub fn from_gzip<R, T>(src: R) -> Result<T>
     where R: io::Read,
           T: de::Deserialize,
 {
-    let mut gzip = try!(read::GzDecoder::new(src));
+    let gzip = try!(read::GzDecoder::new(src));
     let mut decoder = Decoder::new(gzip);
     de::Deserialize::deserialize(&mut decoder)
 }
@@ -64,7 +64,7 @@ impl<R> Decoder<R> where R: io::Read {
 impl<'a, R: io::Read> de::Deserializer for &'a mut Decoder<R> {
     type Error = Error;
 
-    fn deserialize<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize<V>(self, _visitor: V) -> Result<V::Value>
         where V: de::Visitor
     {
         // The decoder cannot deserialize types by default. It can only handle
