@@ -1,6 +1,7 @@
 use std::io;
 
 use serde::de;
+use flate2::read;
 
 use nbt::serialize::{emit_next_header, raw};
 
@@ -15,6 +16,32 @@ pub fn from_reader<R, T>(src: R) -> Result<T>
           T: de::Deserialize,
 {
     let mut decoder = Decoder::new(src);
+    de::Deserialize::deserialize(&mut decoder)
+}
+
+/// Decode an object from Named Binary Tag (NBT) format.
+///
+/// Note that only maps and structs can be decoded, because the NBT format does
+/// not support bare types. Other types will return `Error::NoRootCompound`.
+pub fn from_gzip<R, T>(src: R) -> Result<T>
+    where R: io::Read,
+          T: de::Deserialize,
+{
+    let mut gzip = try!(read::GzDecoder::new(src));
+    let mut decoder = Decoder::new(gzip);
+    de::Deserialize::deserialize(&mut decoder)
+}
+
+/// Decode an object from Named Binary Tag (NBT) format.
+///
+/// Note that only maps and structs can be decoded, because the NBT format does
+/// not support bare types. Other types will return `Error::NoRootCompound`.
+pub fn from_zlib<R, T>(src: R) -> Result<T>
+    where R: io::Read,
+          T: de::Deserialize,
+{
+    let mut zlib = read::ZlibDecoder::new(src);
+    let mut decoder = Decoder::new(&mut zlib);
     de::Deserialize::deserialize(&mut decoder)
 }
 

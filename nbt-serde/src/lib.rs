@@ -1,4 +1,5 @@
 #[macro_use] extern crate serde;
+extern crate flate2;
 extern crate nbt;
 
 pub use error::{Error, Result};

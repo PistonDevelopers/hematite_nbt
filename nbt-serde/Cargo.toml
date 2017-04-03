@@ -5,6 +5,7 @@ authors = ["Aaron Jacobs <atheriel@gmail.com>"]
 
 [dependencies]
 serde = "0.9"
+flate2 = "0.2"
 hematite-nbt = { path = "..", version = "*" }
 
 [dev-dependencies]
