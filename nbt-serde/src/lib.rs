@@ -2,6 +2,8 @@
 extern crate flate2;
 extern crate nbt;
 
+#[macro_use] mod macros;
+
 pub use error::{Error, Result};
 pub use encode::Encoder;
 pub use decode::Decoder;
