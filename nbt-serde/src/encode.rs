@@ -148,10 +148,11 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
 
     return_expr_for_serialized_types!(
         Err(Error::NoRootCompound); bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-            char str bytes none some unit unit_variant
-            seq seq_fixed_size tuple tuple_struct tuple_variant
+            char str bytes none some unit unit_variant newtype_variant
+            seq seq_fixed_size tuple tuple_struct tuple_variant struct_variant
     );
 
+    /// Serialize unit structs as empty `Tag_Compound` data.
     #[inline]
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         let header = self.header; // Circumvent strange borrowing errors.
@@ -159,6 +160,8 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
         close_nbt(&mut self.writer).map_err(From::from)
     }
 
+    /// Serialize newtype structs by their underlying type. Note that this will
+    /// only be successful if the underyling type is a struct.
     #[inline]
     fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T)
                                            -> Result<()>
@@ -167,22 +170,14 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
         value.serialize(self)
     }
 
-    #[inline]
-    #[allow(unused_variables)]
-    fn serialize_newtype_variant<T: ?Sized>(self, name: &'static str,
-                                            variant_index: usize,
-                                            variant: &'static str,
-                                            value: &T) -> Result<()>
-        where T: ser::Serialize
-    {
-        unimplemented!()
-    }
-
+    /// Arbitrary maps cannot be serialized, so calling this method will always
+    /// return an error.
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         Err(Error::UnrepresentableType("map"))
     }
 
+    /// Serialize structs as `Tag_Compound` data.
     #[inline]
     fn serialize_struct(self, _name: &'static str, _len: usize)
                         -> Result<Self::SerializeStruct>
@@ -190,15 +185,6 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
         let header = self.header; // Circumvent strange borrowing errors.
         try!(self.write_header(0x0a, header));
         Ok(Compound { outer: self, state: State::Bare })
-    }
-
-    #[inline]
-    #[allow(unused_variables)]
-    fn serialize_struct_variant(self, name: &'static str, variant_index: usize,
-                                variant: &'static str, len: usize)
-                                -> Result<Self::SerializeStructVariant>
-    {
-        unimplemented!()
     }
 }
 
@@ -281,9 +267,8 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    #[allow(unused_variables)]
-    fn serialize_char(self, value: char) -> Result<()> {
-        unimplemented!()
+    fn serialize_char(self, _value: char) -> Result<()> {
+        Err(Error::UnrepresentableType("char"))
     }
 
     #[inline]
@@ -294,9 +279,8 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    #[allow(unused_variables)]
-    fn serialize_bytes(self, value: &[u8]) -> Result<()> {
-        unimplemented!()
+    fn serialize_bytes(self, _value: &[u8]) -> Result<()> {
+        Err(Error::UnrepresentableType("u8"))
     }
 
     #[inline]
@@ -313,7 +297,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
 
     #[inline]
     fn serialize_unit(self) -> Result<()> {
-        Ok(())
+        Err(Error::UnrepresentableType("unit"))
     }
 
     #[inline]
@@ -323,11 +307,10 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    #[allow(unused_variables)]
-    fn serialize_unit_variant(self, name: &'static str, variant_index: usize,
-                              variant: &'static str) -> Result<()>
+    fn serialize_unit_variant(self, _name: &'static str, _index: usize,
+                              _variant: &'static str) -> Result<()>
     {
-        unimplemented!()
+        Err(Error::UnrepresentableType("unit variant"))
     }
 
     #[inline]
@@ -339,14 +322,13 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    #[allow(unused_variables)]
-    fn serialize_newtype_variant<T: ?Sized>(self, name: &'static str,
-                                            variant_index: usize,
-                                            variant: &'static str,
-                                            value: &T) -> Result<()>
+    fn serialize_newtype_variant<T: ?Sized>(self, _name: &'static str,
+                                            _index: usize,
+                                            _variant: &'static str,
+                                            _value: &T) -> Result<()>
         where T: ser::Serialize
     {
-        unimplemented!()
+        Err(Error::UnrepresentableType("newtype variant"))
     }
 
     #[inline]

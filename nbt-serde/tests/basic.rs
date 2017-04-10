@@ -360,32 +360,6 @@ fn serialize_none() {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct UnitNbt {
-    data: (),
-}
-
-#[test]
-#[ignore]
-fn serialize_unit() {
-    let nbt = UnitNbt { data: () };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
-
-    let bytes = vec![
-        0x0a,
-            0x00, 0x00,
-            // Not included.
-        0x00
-    ];
-
-    assert_eq!(bytes, dst);
-
-    let read: UnitNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct UnitStructNbt;
 
 #[test]
