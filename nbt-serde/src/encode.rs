@@ -114,31 +114,6 @@ impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
     }
 }
 
-impl<'a, 'b, W> ser::SerializeMap for Compound<'a, 'b, W>
-    where W: io::Write
-{
-    type Ok = ();
-    type Error = Error;
-
-    #[allow(unused_variables)]
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
-        where T: serde::Serialize
-    {
-        unimplemented!();
-    }
-
-    #[allow(unused_variables)]
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
-        where T: serde::Serialize
-    {
-        unimplemented!();
-    }
-
-    fn end(self) -> Result<()> {
-        unimplemented!();
-    }
-}
-
 impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
     where W: io::Write
 {
@@ -167,7 +142,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     type SerializeTuple = ser::Impossible<(), Error>;
     type SerializeTupleStruct = ser::Impossible<(), Error>;
     type SerializeTupleVariant = ser::Impossible<(), Error>;
-    type SerializeMap = Compound<'a, 'b, W>;
+    type SerializeMap = ser::Impossible<(), Error>;
     type SerializeStruct = Compound<'a, 'b, W>;
     type SerializeStructVariant = ser::Impossible<(), Error>;
 
@@ -204,9 +179,8 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     }
 
     #[inline]
-    #[allow(unused_variables)]
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        unimplemented!()
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        Err(Error::UnrepresentableType("map"))
     }
 
     #[inline]
@@ -235,7 +209,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     type SerializeTuple = ser::Impossible<(), Error>;
     type SerializeTupleStruct = ser::Impossible<(), Error>;
     type SerializeTupleVariant = ser::Impossible<(), Error>;
-    type SerializeMap = Compound<'a, 'b, W>;
+    type SerializeMap = ser::Impossible<(), Error>;
     type SerializeStruct = Compound<'a, 'b, W>;
     type SerializeStructVariant = ser::Impossible<(), Error>;
 
@@ -413,9 +387,8 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    #[allow(unused_variables)]
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        unimplemented!()
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        Err(Error::UnrepresentableType("map"))
     }
 
     #[inline]

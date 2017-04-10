@@ -5,6 +5,8 @@ extern crate serde;
 extern crate nbt;
 extern crate nbt_serde;
 
+use std::collections::HashMap;
+
 use nbt_serde::encode::to_writer;
 use nbt_serde::decode::from_reader;
 
@@ -521,5 +523,24 @@ fn serialize_nested_newtype_struct() {
     assert_eq!(bytes, dst);
 
     let read: NestedNewByteNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
+
+#[test]
+fn deserialize_hashmap() {
+    let mut nbt = HashMap::new();
+    nbt.insert("data".to_string(), 100i8);
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x01,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x64,
+        0x00
+    ];
+
+    let read: HashMap<String,i8> = from_reader(&bytes[..]).unwrap();
     assert_eq!(read, nbt)
 }
