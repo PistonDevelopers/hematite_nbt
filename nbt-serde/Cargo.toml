@@ -1,0 +1,25 @@
+[package]
+name = "hematite-nbt-serde"
+version = "0.1.0"
+authors = ["Aaron Jacobs <atheriel@gmail.com>"]
+
+[dependencies]
+serde = "0.9"
+flate2 = "0.2"
+hematite-nbt = { path = "..", version = "*" }
+
+[dev-dependencies]
+serde_derive = "0.9"
+
+[[bench]]
+name = "filetest-bench"
+path = "tests/filetests.rs"
+
+[[bench]]
+name = "mcdata-bench"
+path = "tests/mcdata_tests.rs"
+
+[lib]
+name = "nbt_serde"
+test = false
+bench = false
