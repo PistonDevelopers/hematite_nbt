@@ -11,8 +11,7 @@ use std::io;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 
 use error::{Error, Result};
-
-pub mod raw;
+use raw;
 
 /// A trait indicating that the type has a Named Binary Tag representation.
 ///
@@ -61,6 +60,7 @@ pub mod raw;
 ///
 /// use std::io::Cursor;
 /// use nbt::serialize::*;
+/// use nbt::raw;
 ///
 /// #[derive(Debug, PartialEq)]
 /// struct MyMob {
@@ -77,7 +77,7 @@ pub mod raw;
 ///         try!(self.name.to_nbt(dst, "name"));
 ///         try!(self.health.to_nbt(dst, "health"));
 ///
-///         close_nbt(dst)
+///         raw::close_nbt(dst)
 ///     }
 ///
 ///     fn read_bare_nbt<R>(src: &mut R) -> nbt::Result<MyMob>
@@ -87,7 +87,7 @@ pub mod raw;
 ///         let mut __health: i8 = Default::default();
 ///
 ///         loop {
-///             let (t, n) = try!(emit_next_header(src));
+///             let (t, n) = try!(raw::emit_next_header(src));
 ///
 ///             if t == 0x00 { break; } // i.e. Tag_End
 ///
@@ -153,34 +153,6 @@ pub trait NbtFmt {
     /// most imeplementations will be Compound-like objects. Primitive NBT
     /// types (`i8`, `i16`, `String`, etc.) return `true`.
     #[inline] fn is_bare() -> bool { false }
-}
-
-/// A convenience function for closing NBT format objects.
-///
-/// This function writes a single `0x00` byte to the `io::Write` destination,
-/// which in the NBT format indicates that an open Compound is now closed.
-pub fn close_nbt<W>(dst: &mut W) -> Result<()>
-    where W: io::Write {
-
-    dst.write_u8(0x00).map_err(From::from)
-}
-
-/// Extracts the next header (tag and name) from an NBT format source.
-///
-/// This function will also return the `TAG_End` byte and an empty name if it
-/// encounters it.
-pub fn emit_next_header<R>(src: &mut R) -> Result<(u8, String)>
-    where R: io::Read
-{
-    let tag  = try!(src.read_u8());
-
-    match tag {
-        0x00 => { Ok((tag, "".to_string())) },
-        _    => {
-            let name = try!(raw::read_bare_string(src));
-            Ok((tag, name))
-        },
-    }
 }
 
 /// Serializes an object into NBT format at a given destination.
@@ -381,7 +353,7 @@ impl<S, T> NbtFmt for HashMap<S, T> where S: AsRef<str> + Hash + Eq, T: NbtFmt {
         let mut rval = HashMap::new();
 
         loop {
-            let (tag, key) = try!(emit_next_header(src));
+            let (tag, key) = try!(raw::emit_next_header(src));
 
             if tag == 0x00 { break; } // i.e. Tag_End
             if tag != T::tag() {
@@ -421,7 +393,7 @@ impl<S, T> NbtFmt for BTreeMap<S, T> where S: AsRef<str>, T: NbtFmt {
         let mut rval = BTreeMap::new();
 
         loop {
-            let (tag, key) = try!(emit_next_header(src));
+            let (tag, key) = try!(raw::emit_next_header(src));
 
             if tag == 0x00 { break; } // i.e. Tag_End
             if tag != T::tag() {

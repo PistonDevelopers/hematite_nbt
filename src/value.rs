@@ -5,7 +5,7 @@ use std::io;
 use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 
 use error::{Error, Result};
-use serialize::{close_nbt, raw};
+use raw;
 
 /// Values which can be represented in the Named Binary Tag format.
 #[derive(Clone, Debug, PartialEq)]
@@ -130,7 +130,7 @@ impl Value {
                     try!(nbt.write(dst));
                 }
 
-                close_nbt(&mut dst)
+                raw::close_nbt(&mut dst)
             },
             Value::IntArray(ref vals) => raw::write_bare_int_array(&mut dst, &vals[..]),
         }

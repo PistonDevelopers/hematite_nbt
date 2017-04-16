@@ -3,8 +3,7 @@ use std::io;
 use serde;
 use serde::ser;
 
-use nbt::serialize::close_nbt;
-use nbt::serialize::raw;
+use nbt::raw;
 
 use error::{Error, Result};
 
@@ -131,7 +130,7 @@ impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
     }
 
     fn end(self) -> Result<()> {
-        close_nbt(&mut self.outer.writer).map_err(From::from)
+        raw::close_nbt(&mut self.outer.writer).map_err(From::from)
     }
 }
 
@@ -157,7 +156,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         let header = self.header; // Circumvent strange borrowing errors.
         try!(self.write_header(0x0a, header));
-        close_nbt(&mut self.writer).map_err(From::from)
+        raw::close_nbt(&mut self.writer).map_err(From::from)
     }
 
     /// Serialize newtype structs by their underlying type. Note that this will
@@ -303,7 +302,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     #[inline]
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         try!(self.write_header(0x0a));
-        close_nbt(&mut self.outer.writer).map_err(From::from)
+        raw::close_nbt(&mut self.outer.writer).map_err(From::from)
     }
 
     #[inline]

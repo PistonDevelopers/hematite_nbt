@@ -7,8 +7,9 @@ use std::fs::File;
 use blob::Blob;
 use error::{Error, Result};
 use value::Value;
+use raw;
 use serialize::{
-    NbtFmt, emit_next_header, from_reader, to_writer, close_nbt, read_bare_nbt
+    NbtFmt, from_reader, to_writer, read_bare_nbt
 };
 
 #[test]
@@ -280,7 +281,7 @@ impl NbtFmt for TestStruct {
         try!(self.ids.to_nbt(dst, "ids"));
         try!(self.data.to_nbt(dst, "data"));
 
-        close_nbt(dst)
+        raw::close_nbt(dst)
     }
 
     fn read_bare_nbt<R>(src: &mut R) -> Result<TestStruct>
@@ -295,7 +296,7 @@ impl NbtFmt for TestStruct {
         let mut data: Vec<i8> = Default::default();
 
         loop {
-            let (t, n) = try!(emit_next_header(src));
+            let (t, n) = try!(raw::emit_next_header(src));
 
             if t == 0x00 { break; } // i.e. Tag_End
 

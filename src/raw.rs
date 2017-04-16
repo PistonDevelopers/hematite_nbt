@@ -13,7 +13,17 @@ use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use error::{Error, Result};
-use serialize::{NbtFmt, close_nbt};
+use serialize::NbtFmt;
+
+/// A convenience function for closing NBT format objects.
+///
+/// This function writes a single `0x00` byte to the `io::Write` destination,
+/// which in the NBT format indicates that an open Compound is now closed.
+pub fn close_nbt<W>(dst: &mut W) -> Result<()>
+    where W: io::Write {
+
+    dst.write_u8(0x00).map_err(From::from)
+}
 
 #[inline]
 pub fn write_bare_byte<W>(dst: &mut W, value: i8) -> Result<()>
@@ -119,6 +129,24 @@ pub fn write_bare_compound<'a, W, I, T, S>(dst: &mut W, values: I) -> Result<()>
     
     // Write the marker for the end of the Compound.
     close_nbt(dst)
+}
+
+/// Extracts the next header (tag and name) from an NBT format source.
+///
+/// This function will also return the `TAG_End` byte and an empty name if it
+/// encounters it.
+pub fn emit_next_header<R>(src: &mut R) -> Result<(u8, String)>
+    where R: io::Read
+{
+    let tag  = try!(src.read_u8());
+
+    match tag {
+        0x00 => { Ok((tag, "".to_string())) },
+        _    => {
+            let name = try!(read_bare_string(src));
+            Ok((tag, name))
+        },
+    }
 }
 
 #[inline]
