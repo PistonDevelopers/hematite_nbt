@@ -1,19 +1,17 @@
-//! Contains raw, primitive functions for serializing and deserializing basic
-//! Named Binary Tag types.
+//! Primitive functions for serializing and deserializing NBT data.
 //!
 //! This submodule is not intended for general use, but is exposed for those
 //! interested in writing fast NBT encoding/decoding by hand, where it may be
 //! quite useful.
 //!
-//! For the higher-level abstraction over these primitives, see the
-//! [`NbtFmt`](../trait.NbtFmt.html) trait in the parent module.
+//! A high-level API for reading and writing generic NBT data is available in
+//! the [`Blob`](../struct.Blob.html) struct.
 
 use std::io;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use error::{Error, Result};
-use serialize::NbtFmt;
 
 /// A convenience function for closing NBT format objects.
 ///
@@ -95,40 +93,6 @@ pub fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<()>
 {    
     try!(dst.write_u16::<BigEndian>(value.len() as u16));
     dst.write_all(value.as_bytes()).map_err(From::from)
-}
-
-#[inline]
-pub fn write_bare_list<'a, W, I, T>(dst: &mut W, values: I) -> Result<()>
-   where W: io::Write,
-         I: Iterator<Item=&'a T> + ExactSizeIterator,
-         T: 'a + NbtFmt
-{
-    // The list contents are prefixed by a byte tag for the type and the
-    // length of the list (a big-endian i32).
-    try!(dst.write_u8(T::tag()));
-    try!(dst.write_i32::<BigEndian>(values.len() as i32));
-
-    for ref value in values {
-        // Note the use of bare values.
-        try!(value.to_bare_nbt(dst));
-    }
-
-    Ok(())
-}
-
-#[inline]
-pub fn write_bare_compound<'a, W, I, T, S>(dst: &mut W, values: I) -> Result<()>
-   where W: io::Write,
-         I: Iterator<Item=(&'a S, &'a T)>,
-         S: 'a + AsRef<str>,
-         T: 'a + NbtFmt
-{
-    for (key, ref value) in values {
-        try!(value.to_nbt(dst, key.as_ref()));
-    }
-    
-    // Write the marker for the end of the Compound.
-    close_nbt(dst)
 }
 
 /// Extracts the next header (tag and name) from an NBT format source.
@@ -237,18 +201,4 @@ pub fn read_bare_string<R>(src: &mut R) -> Result<String>
     }
 
     String::from_utf8(bytes).map_err(From::from)
-}
-
-#[inline]
-pub fn read_bare_list<R, T>(src: &mut R) -> Result<Vec<T>>
-    where R: io::Read,
-          T: NbtFmt<Into=T>
-{
-    // Note: This assumes the first (type) byte has already been read.
-    let len = try!(src.read_i32::<BigEndian>()) as usize;
-    let mut buf = Vec::with_capacity(len);
-    for _ in 0..len {
-        buf.push(try!(T::read_bare_nbt(src)));
-    }
-    Ok(buf)
 }

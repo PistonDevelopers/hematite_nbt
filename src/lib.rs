@@ -8,7 +8,6 @@ pub use blob::Blob;
 pub use error::{Error, Result};
 pub use value::Value;
 
-pub mod serialize;
 pub mod raw;
 
 mod blob;
