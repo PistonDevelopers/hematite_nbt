@@ -7,19 +7,52 @@ use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 use error::{Error, Result};
 use raw;
 
-/// Values which can be represented in the Named Binary Tag format.
+/// Values which can be represented in Named Binary Tag (NBT) format.
+///
+/// This enum has one variant for each of the [TAG
+/// types](http://minecraft.gamepedia.com/NBT_format#TAG_definition) defined in
+/// the NBT specification, which can be used to create `Value` objects in the
+/// usual fashion. It is also possible to construct `Value` objects using one of
+/// the provided `Into<T>` trait implementations. For example:
+///
+/// ```rust
+/// use nbt::Value;
+///
+/// let a: Value = 100i32.into();
+/// let b = Value::Int(100);
+/// assert_eq!(a, b);
+/// ```
+///
+/// For reading and writing of NBT binary data directly, see the
+/// [`Blob`](struct.Blob.html) struct.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
+    /// A variant for `TAG_Byte` data, containing a single signed byte.
     Byte(i8),
+    /// A variant for `TAG_Short` data, containing a single signed short.
     Short(i16),
+    /// A variant for `TAG_Int` data, containing a single signed int.
     Int(i32),
+    /// A variant for `TAG_Long` data, containing a single signed long.
     Long(i64),
+    /// A variant for `TAG_Float` data, containing a single 32-bit floating
+    /// point value.
     Float(f32),
+    /// A variant for `TAG_Double` data, containing a single 64-bit floating point
+    /// value.
     Double(f64),
+    /// A variant for `TAG_ByteArray` data, containing a stream of signed bytes.
     ByteArray(Vec<i8>),
+    /// A variant for `TAG_String` data, containing a stream of UTF-8 bytes.
     String(String),
+    /// A variant for `TAG_List` data, containing a homogenous list of another
+    /// TAG type. While it is possible to construct heterogenous lists, `nbt`
+    /// will refuse to serialize them.
     List(Vec<Value>),
+    /// A variant for `TAG_Compound` data, containing key-value pairs of named
+    /// TAG types.
     Compound(HashMap<String, Value>),
+    /// A variant for `TAG_IntArray` data, containing a stream of signed ints.
     IntArray(Vec<i32>),
 }
 
@@ -60,6 +93,7 @@ impl Value {
     }
 
     /// The length of the payload of this `Value`, in bytes.
+    #[doc(hidden)]
     pub fn len(&self) -> usize {
         match *self {
             Value::Byte(_)            => 1,
@@ -86,6 +120,7 @@ impl Value {
 
     /// Writes the header (that is, the value's type ID and optionally a header)
     /// of this `Value` to an `io::Write` destination.
+    #[doc(hidden)]
     pub fn write_header(&self, mut dst: &mut io::Write, header: Option<&str>)
                         -> Result<()>
     {
@@ -97,6 +132,7 @@ impl Value {
     }
 
     /// Writes the payload of this `Value` to an `io::Write` destination.
+    #[doc(hidden)]
     pub fn write(&self, mut dst: &mut io::Write) -> Result<()> {
         match *self {
             Value::Byte(val)   => raw::write_bare_byte(&mut dst, val),
@@ -141,8 +177,9 @@ impl Value {
         }
     }
 
-    /// Reads any valid `Value` header (that is, a type ID and a title of
+    /// Reads any valid `Value` header (that is, a type ID and an  optional header of
     /// arbitrary UTF-8 bytes) from an `io::Read` source.
+    #[doc(hidden)]
     pub fn read_header(mut src: &mut io::Read) -> Result<(u8, Option<String>)> {
         let id = try!(src.read_u8());
         if id == 0x00 { return Ok((0x00, None)); }
@@ -156,6 +193,7 @@ impl Value {
 
     /// Reads the payload of an `Value` with a given type ID from an
     /// `io::Read` source.
+    #[doc(hidden)]
     pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<Value> {
         match id {
             0x01 => Ok(Value::Byte(raw::read_bare_byte(&mut src)?)),
