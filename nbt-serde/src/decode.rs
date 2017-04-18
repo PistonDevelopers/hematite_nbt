@@ -3,7 +3,7 @@ use std::io;
 use serde::de;
 use flate2::read;
 
-use nbt::serialize::{emit_next_header, raw};
+use nbt::raw;
 
 use error::{Error, Result};
 
@@ -99,7 +99,7 @@ impl<'a, R: io::Read> de::Deserializer for &'a mut Decoder<R> {
         where V: de::Visitor
     {
         // Ignore the header (if there is one).
-        let (tag, _) = try!(emit_next_header(&mut self.reader));
+        let (tag, _) = try!(raw::emit_next_header(&mut self.reader));
 
         match tag {
             0x0a => visitor.visit_map(MapDecoder::new(self)),

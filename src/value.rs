@@ -5,6 +5,7 @@ use std::io;
 use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 
 use error::{Error, Result};
+use raw;
 
 /// Values which can be represented in the Named Binary Tag format.
 #[derive(Clone, Debug, PartialEq)]
@@ -87,30 +88,20 @@ impl Value {
     /// of this `Value` to an `io::Write` destination.
     pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<()> {
         try!(dst.write_u8(self.id()));
-        try!(dst.write_u16::<BigEndian>(title.len() as u16));
-        try!(dst.write_all(title.as_bytes()));
-        Ok(())
+        raw::write_bare_string(&mut dst, title)
     }
 
     /// Writes the payload of this `Value` to an `io::Write` destination.
     pub fn write(&self, mut dst: &mut io::Write) -> Result<()> {
         match *self {
-            Value::Byte(val)   => try!(dst.write_i8(val)),
-            Value::Short(val)  => try!(dst.write_i16::<BigEndian>(val)),
-            Value::Int(val)    => try!(dst.write_i32::<BigEndian>(val)),
-            Value::Long(val)   => try!(dst.write_i64::<BigEndian>(val)),
-            Value::Float(val)  => try!(dst.write_f32::<BigEndian>(val)),
-            Value::Double(val) => try!(dst.write_f64::<BigEndian>(val)),
-            Value::ByteArray(ref vals) => {
-                try!(dst.write_i32::<BigEndian>(vals.len() as i32));
-                for &byte in vals {
-                    try!(dst.write_i8(byte));
-                }
-            },
-            Value::String(ref val) => {
-                try!(dst.write_u16::<BigEndian>(val.len() as u16));
-                try!(dst.write_all(val.as_bytes()));
-            },
+            Value::Byte(val)   => raw::write_bare_byte(&mut dst, val),
+            Value::Short(val)  => raw::write_bare_short(&mut dst, val),
+            Value::Int(val)    => raw::write_bare_int(&mut dst, val),
+            Value::Long(val)   => raw::write_bare_long(&mut dst, val),
+            Value::Float(val)  => raw::write_bare_float(&mut dst, val),
+            Value::Double(val) => raw::write_bare_double(&mut dst, val),
+            Value::ByteArray(ref vals) => raw::write_bare_byte_array(&mut dst, &vals[..]),
+            Value::String(ref val) => raw::write_bare_string(&mut dst, &val),
             Value::List(ref vals) => {
                 // This is a bit of a trick: if the list is empty, don't bother
                 // checking its type.
@@ -130,6 +121,7 @@ impl Value {
                         try!(nbt.write(dst));
                     }
                 }
+                Ok(())
             },
             Value::Compound(ref vals)  => {
                 for (name, ref nbt) in vals {
@@ -137,17 +129,11 @@ impl Value {
                     try!(nbt.write_header(dst, &name));
                     try!(nbt.write(dst));
                 }
-                // Write the marker for the end of the Compound.
-                try!(dst.write_u8(0x00))
-            }
-            Value::IntArray(ref vals) => {
-                try!(dst.write_i32::<BigEndian>(vals.len() as i32));
-                for &nbt in vals {
-                    try!(dst.write_i32::<BigEndian>(nbt));
-                }
+
+                raw::close_nbt(&mut dst)
             },
-        };
-        Ok(())
+            Value::IntArray(ref vals) => raw::write_bare_int_array(&mut dst, &vals[..]),
+        }
     }
 
     /// Reads any valid `Value` header (that is, a type ID and a title of
@@ -156,12 +142,7 @@ impl Value {
         let id = try!(src.read_u8());
         if id == 0x00 { return Ok((0x00, "".to_string())); }
         // Extract the name.
-        let name_len = try!(src.read_u16::<BigEndian>());
-        let name = if name_len != 0 {
-            try!(read_utf8(src, name_len as usize))
-        } else {
-            "".to_string()
-        };
+        let name = try!(raw::read_bare_string(&mut src));
         Ok((id, name))
     }
 
@@ -169,24 +150,14 @@ impl Value {
     /// `io::Read` source.
     pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<Value> {
         match id {
-            0x01 => Ok(Value::Byte(try!(src.read_i8()))),
-            0x02 => Ok(Value::Short(try!(src.read_i16::<BigEndian>()))),
-            0x03 => Ok(Value::Int(try!(src.read_i32::<BigEndian>()))),
-            0x04 => Ok(Value::Long(try!(src.read_i64::<BigEndian>()))),
-            0x05 => Ok(Value::Float(try!(src.read_f32::<BigEndian>()))),
-            0x06 => Ok(Value::Double(try!(src.read_f64::<BigEndian>()))),
-            0x07 => { // ByteArray
-                let len = try!(src.read_i32::<BigEndian>()) as usize;
-                let mut buf = Vec::with_capacity(len);
-                for _ in 0..len {
-                    buf.push(try!(src.read_i8()));
-                }
-                Ok(Value::ByteArray(buf))
-            },
-            0x08 => { // String
-                let len = try!(src.read_u16::<BigEndian>()) as usize;
-                Ok(Value::String(try!(read_utf8(src, len))))
-            },
+            0x01 => Ok(Value::Byte(raw::read_bare_byte(&mut src)?)),
+            0x02 => Ok(Value::Short(raw::read_bare_short(&mut src)?)),
+            0x03 => Ok(Value::Int(raw::read_bare_int(&mut src)?)),
+            0x04 => Ok(Value::Long(raw::read_bare_long(&mut src)?)),
+            0x05 => Ok(Value::Float(raw::read_bare_float(&mut src)?)),
+            0x06 => Ok(Value::Double(raw::read_bare_double(&mut src)?)),
+            0x07 => Ok(Value::ByteArray(raw::read_bare_byte_array(&mut src)?)),
+            0x08 => Ok(Value::String(raw::read_bare_string(&mut src)?)),
             0x09 => { // List
                 let id = try!(src.read_u8());
                 let len = try!(src.read_i32::<BigEndian>()) as usize;
@@ -206,14 +177,7 @@ impl Value {
                 }
                 Ok(Value::Compound(buf))
             },
-            0x0b => { // IntArray
-                let len = try!(src.read_i32::<BigEndian>()) as usize;
-                let mut buf = Vec::with_capacity(len);
-                for _ in 0..len {
-                    buf.push(try!(src.read_i32::<BigEndian>()));
-                }
-                Ok(Value::IntArray(buf))
-            },
+            0x0b => Ok(Value::IntArray(raw::read_bare_int_array(&mut src)?)),
             e => Err(Error::InvalidTypeId(e))
         }
     }
@@ -301,19 +265,4 @@ impl From<Vec<i32>> for Value {
 
 impl<'a> From<&'a [i32]> for Value {
     fn from(t: &'a [i32]) -> Value { Value::IntArray(t.into()) }
-}
-
-/// Returns a `Vec<u8>` containing the next `len` bytes in the reader.
-///
-/// Adapted from `byteorder::read_full`.
-fn read_utf8(mut src: &mut io::Read, len: usize) -> Result<String> {
-    let mut bytes = vec![0; len];
-    let mut n_read = 0usize;
-    while n_read < bytes.len() {
-        match try!(src.read(&mut bytes[n_read..])) {
-            0 => return Err(Error::IncompleteNbtValue),
-            n => n_read += n
-        }
-    }
-    Ok(try!(String::from_utf8(bytes)))
 }
