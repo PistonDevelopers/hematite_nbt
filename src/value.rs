@@ -84,11 +84,16 @@ impl Value {
         }
     }
 
-    /// Writes the header (that is, the value's type ID and optionally a title)
+    /// Writes the header (that is, the value's type ID and optionally a header)
     /// of this `Value` to an `io::Write` destination.
-    pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<()> {
+    pub fn write_header(&self, mut dst: &mut io::Write, header: Option<&str>)
+                        -> Result<()>
+    {
         try!(dst.write_u8(self.id()));
-        raw::write_bare_string(&mut dst, title)
+        match header {
+            Some(ref s) => raw::write_bare_string(&mut dst, s),
+            None        => raw::write_bare_string(&mut dst, ""),
+        }
     }
 
     /// Writes the payload of this `Value` to an `io::Write` destination.
@@ -126,7 +131,7 @@ impl Value {
             Value::Compound(ref vals)  => {
                 for (name, ref nbt) in vals {
                     // Write the header for the tag.
-                    try!(nbt.write_header(dst, &name));
+                    try!(nbt.write_header(dst, Some(&name)));
                     try!(nbt.write(dst));
                 }
 
@@ -138,12 +143,15 @@ impl Value {
 
     /// Reads any valid `Value` header (that is, a type ID and a title of
     /// arbitrary UTF-8 bytes) from an `io::Read` source.
-    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String)> {
+    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, Option<String>)> {
         let id = try!(src.read_u8());
-        if id == 0x00 { return Ok((0x00, "".to_string())); }
+        if id == 0x00 { return Ok((0x00, None)); }
         // Extract the name.
         let name = try!(raw::read_bare_string(&mut src));
-        Ok((id, name))
+        match name.len() {
+            0 => Ok((id, None)),
+            _ => Ok((id, Some(name))),
+        }
     }
 
     /// Reads the payload of an `Value` with a given type ID from an
@@ -173,7 +181,7 @@ impl Value {
                     let (id, name) = try!(Value::read_header(src));
                     if id == 0x00 { break; }
                     let tag = try!(Value::from_reader(id, src));
-                    buf.insert(name, tag);
+                    buf.insert(name.unwrap(), tag);
                 }
                 Ok(Value::Compound(buf))
             },
