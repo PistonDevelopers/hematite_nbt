@@ -234,6 +234,26 @@ fn nbt_bigtest() {
     assert_eq!(1544, bigtest.len());
 }
 
+#[test]
+fn nbt_arrays() {
+    let mut arrays_file = File::open("tests/arrays.nbt").unwrap();
+    let arrays = Blob::from_reader(&mut arrays_file).unwrap();
+    match &arrays["ia"] {
+        &Value::IntArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
+        _ => panic!("ia was not TAG_IntArray"),
+    }
+
+    match &arrays["ba"] {
+        &Value::ByteArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
+        _ => panic!("ba was not TAG_ByteArray"),
+    }
+
+    match &arrays["la"] {
+        &Value::LongArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
+        _ => panic!("la was not TAG_LongArray"),
+    }
+}
+
 //#[bench]
 //fn nbt_bench_bigwrite(b: &mut Bencher) {
 //    let mut file = File::open("tests/big1.nbt").unwrap();

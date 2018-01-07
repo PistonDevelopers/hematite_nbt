@@ -21,6 +21,7 @@ pub enum Value {
     List(Vec<Value>),
     Compound(HashMap<String, Value>),
     IntArray(Vec<i32>),
+    LongArray(Vec<i64>),
 }
 
 impl Value {
@@ -38,7 +39,8 @@ impl Value {
             Value::String(_)    => 0x08,
             Value::List(_)      => 0x09,
             Value::Compound(_)  => 0x0a,
-            Value::IntArray(_)  => 0x0b
+            Value::IntArray(_)  => 0x0b,
+            Value::LongArray(_) => 0x0c,
         }
     }
 
@@ -55,7 +57,8 @@ impl Value {
             Value::String(_)    => "TAG_String",
             Value::List(_)      => "TAG_List",
             Value::Compound(_)  => "TAG_Compound",
-            Value::IntArray(_)  => "TAG_IntArray"
+            Value::IntArray(_)  => "TAG_IntArray",
+            Value::LongArray(_) => "TAG_LongArray",
         }
     }
 
@@ -81,6 +84,7 @@ impl Value {
                 }).fold(0, |acc, item| acc + item) + 1 // + u8 for the Tag_End
             },
             Value::IntArray(ref val)  => 4 + 4 * val.len(),
+            Value::LongArray(ref val) => 4 + 8 * val.len(),
         }
     }
 
@@ -133,6 +137,7 @@ impl Value {
                 raw::close_nbt(&mut dst)
             },
             Value::IntArray(ref vals) => raw::write_bare_int_array(&mut dst, &vals[..]),
+            Value::LongArray(ref vals) => raw::write_bare_long_array(&mut dst, &vals[..]),
         }
     }
 
@@ -178,6 +183,7 @@ impl Value {
                 Ok(Value::Compound(buf))
             },
             0x0b => Ok(Value::IntArray(raw::read_bare_int_array(&mut src)?)),
+            0x0c => Ok(Value::LongArray(raw::read_bare_long_array(&mut src)?)),
             e => Err(Error::InvalidTypeId(e))
         }
     }
@@ -214,7 +220,8 @@ impl fmt::Display for Value {
                 try!(write!(f, "}}"));
                 Ok(())
             }
-            Value::IntArray(ref v) => write!(f, "{:?}", v)
+            Value::IntArray(ref v) => write!(f, "{:?}", v),
+            Value::LongArray(ref v) => write!(f, "{:?}", v),
         }
     }
 }
@@ -265,4 +272,12 @@ impl From<Vec<i32>> for Value {
 
 impl<'a> From<&'a [i32]> for Value {
     fn from(t: &'a [i32]) -> Value { Value::IntArray(t.into()) }
+}
+
+impl From<Vec<i64>> for Value {
+    fn from(t: Vec<i64>) -> Value { Value::LongArray(t) }
+}
+
+impl<'a> From<&'a [i64]> for Value {
+    fn from(t: &'a [i64]) -> Value { Value::LongArray(t.into()) }
 }

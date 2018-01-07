@@ -88,6 +88,17 @@ pub fn write_bare_int_array<W>(dst: &mut W, value: &[i32]) -> Result<()>
 }
 
 #[inline]
+pub fn write_bare_long_array<W>(dst: &mut W, value: &[i64]) -> Result<()>
+   where W: io::Write
+{
+    dst.write_i32::<BigEndian>(value.len() as i32)?;
+    for &v in value {
+        dst.write_i64::<BigEndian>(v)?;
+    }
+    Ok(())
+}
+
+#[inline]
 pub fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<()>
    where W: io::Write
 {    
@@ -179,6 +190,18 @@ pub fn read_bare_int_array<R>(src: &mut R) -> Result<Vec<i32>>
     // FIXME: Test performance vs transmute.
     for _ in 0..len {
         buf.push(try!(src.read_i32::<BigEndian>()));
+    }
+    Ok(buf)
+}
+
+#[inline]
+pub fn read_bare_long_array<R>(src: &mut R) -> Result<Vec<i64>>
+    where R: io::Read
+{
+    let len = src.read_i32::<BigEndian>()? as usize;
+    let mut buf = Vec::with_capacity(len);
+    for _ in 0..len {
+        buf.push(src.read_i64::<BigEndian>()?);
     }
     Ok(buf)
 }
