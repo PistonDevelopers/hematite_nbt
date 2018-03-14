@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 use flate2::Compression;
 use flate2::read::{GzDecoder, ZlibDecoder};
@@ -10,53 +10,90 @@ use flate2::write::{GzEncoder, ZlibEncoder};
 use error::{Error, Result};
 use value::Value;
 
-/// A generic, complete object in Named Binary Tag format.
+/// A blob of Named Binary Tag (NBT) data.
 ///
-/// This is essentially a map of names to `Value`s, with an optional top-level
-/// name of its own. It can be created in a similar way to a `HashMap`, or read
-/// from an `io::Read` source, and its binary representation can be written to
-/// an `io::Write` destination.
+/// This struct provides methods to read, write, create, and modify data with a
+/// well-defined NBT binary representation (that is, it contains only valid
+/// [`Value`](enum.Value.html) entries). The API is similar to a `HashMap`.
 ///
-/// These read and write methods support both uncompressed and compressed
-/// (through Gzip or zlib compression) methods.
+/// # Reading NBT-encoded Data
+///
+/// Minecraft encodes many data files in the NBT format, which you can inspect
+/// and modify using `Blob` objects. For example, to print out the contents of a
+/// [`level.dat` file](http://minecraft.gamepedia.com/Level_format#level.dat_format),
+/// one could use the following:
+///
+/// ```ignore
+/// use std::fs;
+/// use nbt::Blob;
+///
+/// let mut file = fs::File::open("level.dat").unwrap();
+/// let level = Blob::from_gzip(&mut file).unwrap();
+/// println!("File contents:\n{}", level); 
+/// ```
+///
+/// # Creating or Modifying NBT-encoded Data
+///
+/// `Blob` objects have an API similar to `HashMap<String, Value>`, supporting
+/// an `insert()` method for inserting new data and the index operator for
+/// accessing or modifying this data.
 ///
 /// ```rust
 /// use nbt::{Blob, Value};
 ///
 /// // Create a `Blob` from key/value pairs.
-/// let mut nbt = Blob::new("".to_string());
-/// nbt.insert("name".to_string(), "Herobrine").unwrap();
-/// nbt.insert("health".to_string(), 100i8).unwrap();
-/// nbt.insert("food".to_string(), 20.0f32).unwrap();
+/// let mut nbt = Blob::new();
+/// nbt.insert("player", "Herobrine"); // Implicit conversion to `Value`.
+/// nbt.insert("score", Value::Int(1400)); // Explicit `Value` type.
 ///
-/// // Write a compressed binary representation to a byte array.
+/// // Modify a value using the Index operator.
+/// nbt["score"] = Value::Int(1401);
+/// ```
+///
+/// # Writing NBT-encoded Data
+///
+/// `Blob` provides methods for writing uncompressed and compressed binary NBT
+/// data to arbitrary `io::Write` destinations. For example, to write compressed
+/// data to a byte vector:
+///
+/// ```rust
+/// # use nbt::Blob;
+/// # let nbt = Blob::new();
 /// let mut dst = Vec::new();
-/// nbt.write_zlib(&mut dst).unwrap();
+/// nbt.write_gzip(&mut dst);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Blob {
-    title: String,
+    header: Option<String>,
     content: Value
 }
 
 impl Blob {
-    /// Create a new NBT file format representation with the given name.
-    pub fn new(title: String) -> Blob {
+    /// Create a new NBT file format representation with an empty header.
+    pub fn new() -> Blob {
         let map: HashMap<String, Value> = HashMap::new();
-        Blob { title: title, content: Value::Compound(map) }
+        Blob { header: None, content: Value::Compound(map) }
+    }
+
+    /// Create a new NBT file format representation the given header.
+    pub fn with_header<S>(header: S) -> Blob
+        where S: Into<String>
+    {
+        let map: HashMap<String, Value> = HashMap::new();
+        Blob { header: Some(header.into()), content: Value::Compound(map) }
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
     pub fn from_reader(mut src: &mut io::Read) -> Result<Blob> {
-        let header = try!(Value::read_header(src));
+        let (tag, header) = try!(Value::read_header(src));
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
         // have a top-level Compound.
-        if header.0 != 0x0a {
+        if tag != 0x0a {
             return Err(Error::NoRootCompound);
         }
-        let content = try!(Value::from_reader(header.0, src));
-        Ok(Blob { title: header.1, content: content })
+        let content = try!(Value::from_reader(tag, src));
+        Ok(Blob { header: header, content: content })
     }
 
     /// Extracts an `Blob` object from an `io::Read` source that is
@@ -76,7 +113,10 @@ impl Blob {
     /// Writes the binary representation of this `Blob` to an `io::Write`
     /// destination.
     pub fn write(&self, dst: &mut io::Write) -> Result<()> {
-        try!(self.content.write_header(dst, &self.title));
+        match self.header {
+            None => try!(self.content.write_header(dst, None)),
+            Some(ref h) => try!(self.content.write_header(dst, Some(&h[..]))),
+        }
         self.content.write(dst)
     }
 
@@ -99,8 +139,8 @@ impl Blob {
     /// This method will also return an error if a `Value::List` with
     /// heterogeneous elements is passed in, because this is illegal in the NBT
     /// file format.
-    pub fn insert<V>(&mut self, name: String, value: V) -> Result<()>
-           where V: Into<Value> {
+    pub fn insert<V, S>(&mut self, name: S, value: V) -> Result<()>
+           where S: Into<String>, V: Into<Value> {
         // The follow prevents `List`s with heterogeneous tags from being
         // inserted into the file. It would be nicer to return an error, but
         // this would depart from the `HashMap` API for `insert`.
@@ -116,7 +156,7 @@ impl Blob {
             }
         }
         if let Value::Compound(ref mut v) = self.content {
-            v.insert(name, nvalue);
+            v.insert(name.into(), nvalue);
         } else {
             unreachable!();
         }
@@ -126,7 +166,10 @@ impl Blob {
     /// The uncompressed length of this `Blob`, in bytes.
     pub fn len(&self) -> usize {
         // tag + name + content
-        1 + 2 + self.title.len() + self.content.len()
+        match self.header {
+            None => 1 + 2 + self.content.len(),
+            Some(ref h) => 1 + 2 + h.len() + self.content.len(),
+        }
     }
 }
 
@@ -141,8 +184,20 @@ impl<'a> Index<&'a str> for Blob {
     }
 }
 
+impl<'a> IndexMut<&'a str> for Blob {
+    fn index_mut<'b>(&'b mut self, s: &'a str) -> &'b mut Value {
+        match self.content {
+            Value::Compound(ref mut v) => v.get_mut(s).unwrap(),
+            _ => unreachable!()
+        }
+    }
+}
+
 impl fmt::Display for Blob {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TAG_Compound(\"{}\"): {}", self.title, self.content)
+        match self.header {
+            Some(ref h) => write!(f, "TAG_Compound(\"{}\"): {}", h, self.content),
+            None => write!(f, "TAG_Compound(): {}", self.content),
+        }
     }
 }
