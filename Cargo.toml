@@ -12,6 +12,9 @@ authors = [
     "Aaron Jacobs <atheriel@gmail.com>"
 ]
 
+[features]
+default = ["serde"]
+
 [lib]
 name = "nbt"
 path = "src/lib.rs"
@@ -19,3 +22,7 @@ path = "src/lib.rs"
 [dependencies]
 byteorder = "1.0.0"
 flate2 = "0.2"
+serde = { version = "0.9", optional = true }
+
+[dev-dependencies]
+serde_derive = "0.9"

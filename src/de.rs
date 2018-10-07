@@ -3,9 +3,9 @@ use std::io;
 use serde::de;
 use flate2::read;
 
-use nbt::raw;
+use raw;
 
-use error::{Error, Result};
+use serde_error::{Error, Result};
 
 /// Decode an object from Named Binary Tag (NBT) format.
 ///

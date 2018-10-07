@@ -3,11 +3,10 @@ extern crate serde_derive;
 extern crate serde;
 
 extern crate nbt;
-extern crate nbt_serde;
 
-use nbt_serde::error::{Error, Result};
-use nbt_serde::encode::to_writer;
-use nbt_serde::decode::from_reader;
+use nbt::de::from_reader;
+use nbt::ser::to_writer;
+use nbt::serde_error::{Error, Result};
 
 #[test]
 fn no_root_compound() {

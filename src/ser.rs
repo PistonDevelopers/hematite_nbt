@@ -3,9 +3,9 @@ use std::io;
 use serde;
 use serde::ser;
 
-use nbt::raw;
+use raw;
 
-use error::{Error, Result};
+use serde_error::{Error, Result};
 
 /// Encode `value` in Named Binary Tag format to the given `io::Write`
 /// destination, with an optional header.

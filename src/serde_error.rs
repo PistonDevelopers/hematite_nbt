@@ -4,13 +4,13 @@ use std::io;
 use std::result;
 
 use serde;
-use nbt;
+use error as lib_error;
 
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    Nbt(nbt::Error),
+    Nbt(lib_error::Error),
     Io(io::Error),
     Serde(String),
     NoRootCompound,
@@ -45,8 +45,8 @@ impl fmt::Display for Error {
     }
 }
 
-impl From<nbt::Error> for Error {
-    fn from(err: nbt::Error) -> Error {
+impl From<lib_error::Error> for Error {
+    fn from(err: lib_error::Error) -> Error {
         Error::Nbt(err)
     }
 }
