@@ -148,7 +148,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     return_expr_for_serialized_types!(
         Err(Error::NoRootCompound); bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
             char str bytes none some unit unit_variant newtype_variant
-            seq seq_fixed_size tuple tuple_struct tuple_variant struct_variant
+            seq tuple tuple_struct tuple_variant struct_variant
     );
 
     /// Serialize unit structs as empty `Tag_Compound` data.
@@ -306,7 +306,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_unit_variant(self, _name: &'static str, _index: usize,
+    fn serialize_unit_variant(self, _name: &'static str, _index: u32,
                               _variant: &'static str) -> Result<()>
     {
         Err(Error::UnrepresentableType("unit variant"))
@@ -322,7 +322,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
 
     #[inline]
     fn serialize_newtype_variant<T: ?Sized>(self, _name: &'static str,
-                                            _index: usize,
+                                            _index: u32,
                                             _variant: &'static str,
                                             _value: &T) -> Result<()>
         where T: ser::Serialize
@@ -341,13 +341,6 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_seq_fixed_size(self, len: usize) -> Result<Self::SerializeSeq>
-    {
-        try!(self.write_header(0x09));
-        Ok(Compound { outer: self.outer, state: State::ListHead(len) })
-    }
-
-    #[inline]
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
         Err(Error::UnrepresentableType("tuple"))
     }
@@ -360,7 +353,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_tuple_variant(self, _name: &'static str, _index: usize,
+    fn serialize_tuple_variant(self, _name: &'static str, _index: u32,
                                _variant: &'static str, _len: usize)
                                -> Result<Self::SerializeTupleVariant>
     {
@@ -381,7 +374,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_struct_variant(self, _name: &'static str, _index: usize,
+    fn serialize_struct_variant(self, _name: &'static str, _index: u32,
                                 _variant: &'static str, _len: usize)
                                 -> Result<Self::SerializeStructVariant>
     {
