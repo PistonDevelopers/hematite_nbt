@@ -3,7 +3,7 @@ use std::io;
 use serde::de;
 use flate2::read;
 
-use nbt::raw;
+use raw;
 
 use error::{Error, Result};
 
@@ -241,7 +241,7 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
             0x09 => visitor.visit_seq(SeqDecoder::list(outer)?),
             0x0a => visitor.visit_map(MapDecoder::new(outer)),
             0x0b => visitor.visit_seq(SeqDecoder::int_array(outer)?),
-            t => Err(Error::UnknownTag(t)),
+            t => Err(Error::InvalidTypeId(t)),
         }
     }
 
@@ -259,7 +259,7 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
                     b => Err(Error::NonBooleanByte(b)),
                 }
             },
-            _ => Err(Error::UnexpectedTag(self.tag, 0x01)),
+            _ => Err(Error::TagMismatch(self.tag, 0x01)),
         }
     }
 

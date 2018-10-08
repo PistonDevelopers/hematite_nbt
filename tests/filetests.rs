@@ -1,43 +1,25 @@
 //! Crate for testing whether the deserialize codegen is capable of handling the
-//! sample NBT files in the test/ directory.
-
-#![feature(test)]
-extern crate test;
+//! sample NBT files in the test/ directory, which include real
+//! Minecraft-generated files.
 
 #[macro_use] extern crate serde_derive;
 extern crate serde;
 
 extern crate nbt;
-extern crate nbt_serde;
 
 use std::fs::File;
 
-use nbt_serde::decode::{from_reader, from_gzip};
+use nbt::de::{from_reader, from_gzip};
 
-#[derive(Debug, PartialEq, Deserialize)]
-struct Small1 {
-    name: String
-}
+// Include structure definitions.
+include!("data.rs.in");
 
 #[test]
 fn deserialize_small1() {
     let nbt = Small1 { name: "Bananrama".to_string() };
-    let mut file = File::open("../tests/small1.nbt").unwrap();
+    let mut file = File::open("tests/small1.nbt").unwrap();
     let read: Small1 = from_reader(&mut file).unwrap();
     assert_eq!(nbt, read)
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-struct Small2Sub {
-    #[serde(rename = "1")] one: i8,
-    #[serde(rename = "2")] two: i16,
-    #[serde(rename = "3")] three: i32,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-struct Small2 {
-    aaa: Small2Sub,
-    bbb: Small2Sub,
 }
 
 #[test]
@@ -46,20 +28,9 @@ fn deserialize_small2() {
         aaa: Small2Sub { one: 17, two: 4386, three: 287454020 },
         bbb: Small2Sub { one: 17, two: 4386, three: 287454020 }
     };
-    let mut file = File::open("../tests/small2.nbt").unwrap();
+    let mut file = File::open("tests/small2.nbt").unwrap();
     let read: Small2 = from_reader(&mut file).unwrap();
     assert_eq!(nbt, read)
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-struct Small3Sub {
-    ccc: i32,
-    name: String,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-struct Small3 {
-    bbb: Vec<Small3Sub>,
 }
 
 #[test]
@@ -70,23 +41,9 @@ fn deserialize_small3() {
             Small3Sub { ccc: 287454020, name: "wololo".to_string() }
         ]
     };
-    let mut file = File::open("../tests/small3.nbt").unwrap();
+    let mut file = File::open("tests/small3.nbt").unwrap();
     let read: Small3 = from_reader(&mut file).unwrap();
     assert_eq!(nbt, read)
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-struct Small4Sub {
-    aaa: i8,
-    bbb: i8,
-    ccc: i8,
-    ddd: i8,
-}
-
-#[derive(Debug, PartialEq, Deserialize)]
-struct Small4 {
-    c1: Small4Sub,
-    c2: Small4Sub,
 }
 
 #[test]
@@ -95,44 +52,9 @@ fn deserialize_small4() {
         c1: Small4Sub { aaa: 17, bbb: 34, ccc: 51, ddd: 68 },
         c2: Small4Sub { aaa: 17, bbb: 34, ccc: 51, ddd: 68 }
     };
-    let mut file = File::open("../tests/small4.nbt").unwrap();
+    let mut file = File::open("tests/small4.nbt").unwrap();
     let read: Small4 = from_reader(&mut file).unwrap();
     assert_eq!(nbt, read)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Big1Sub1 {
-    name: String,
-    #[serde(rename = "created-on")] created_on: i64,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Big1Sub2 {
-    name: String,
-    value: f32,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Big1Sub3 {
-    ham: Big1Sub2,
-    egg: Big1Sub2,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Big1 {
-    #[serde(rename = "listTest (compound)")] list_test_compound: Vec<Big1Sub1>,
-    #[serde(rename = "longTest")] long_test: i64,
-    #[serde(rename = "shortTest")] short_test: i32,
-    #[serde(rename = "byteTest")] byte_test: i8,
-    #[serde(rename = "floatTest")] float_test: i64,
-    #[serde(rename = "nested compound test")] nested_compound_test: Big1Sub3,
-    #[serde(rename = "byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))")]
-    byte_array_test: Vec<i8>, // [i8; 1000] does not implement PartialEq.
-    #[serde(rename = "stringTest")] string_test: String,
-    #[serde(rename = "listTest (long)")]
-    list_test_long: [i64; 5], // Vec<i64> also works.
-    #[serde(rename = "doubleTest")] double_test: f64,
-    #[serde(rename = "intTest")] int_test: i32,
 }
 
 #[test]
@@ -237,58 +159,25 @@ fn deserialize_big1() {
         double_test: 0.4931287132182315,
         int_test: 2147483647,
     };
-    let mut file = File::open("../tests/big1.nbt").unwrap();
+    let mut file = File::open("tests/big1.nbt").unwrap();
     let read: Big1 = from_gzip(&mut file).unwrap();
     assert_eq!(nbt, read)
 }
 
-mod bench {
-    use std::io;
-    use std::io::Read;
+#[test]
+fn deserialize_simple_player() {
+    let mut file = File::open("tests/simple_player.dat").unwrap();
+    let _: PlayerData = from_gzip(&mut file).unwrap();
+}
 
-    use test::Bencher;
+#[test]
+fn deserialize_complex_player() {
+    let mut file = File::open("tests/complex_player.dat").unwrap();
+    let _: PlayerData = from_gzip(&mut file).unwrap();
+}
 
-    use nbt_serde::encode::to_writer;
-
-    use super::*;
-
-    #[bench]
-    fn deserialize_big1_as_struct(b: &mut Bencher) {
-        let mut file = File::open("../tests/big1.nbt").unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        b.iter(|| {
-            let mut src = std::io::Cursor::new(&contents[..]);
-            let _: Big1 = from_gzip(&mut src).unwrap();
-        });
-    }
-
-    #[bench]
-    fn deserialize_big1_as_blob(b: &mut Bencher) {
-        let mut file = File::open("../tests/big1.nbt").unwrap();
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).unwrap();
-        b.iter(|| {
-            let mut src = std::io::Cursor::new(&contents[..]);
-            nbt::Blob::from_gzip(&mut src).unwrap();
-        });
-    }
-    
-    #[bench]
-    fn serialize_big1_as_struct(b: &mut Bencher) {
-        let mut file = File::open("../tests/big1.nbt").unwrap();
-        let nbt: Big1 = from_gzip(&mut file).unwrap();
-        b.iter(|| {
-            to_writer(&mut io::sink(), &nbt, None)
-        });
-    }
-
-    #[bench]
-    fn serialize_big1_as_blob(b: &mut Bencher) {
-        let mut file = File::open("../tests/big1.nbt").unwrap();
-        let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-        b.iter(|| {
-            nbt.write(&mut io::sink())
-        });
-    }
+#[test]
+fn deserialize_level() {
+    let mut file = File::open("tests/level.dat").unwrap();
+    let _: Level = from_gzip(&mut file).unwrap();
 }

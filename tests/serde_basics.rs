@@ -3,12 +3,11 @@ extern crate serde_derive;
 extern crate serde;
 
 extern crate nbt;
-extern crate nbt_serde;
 
 use std::collections::HashMap;
 
-use nbt_serde::encode::to_writer;
-use nbt_serde::decode::from_reader;
+use nbt::de::from_reader;
+use nbt::ser::to_writer;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct ByteNbt {

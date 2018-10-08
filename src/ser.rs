@@ -3,7 +3,7 @@ use std::io;
 use serde;
 use serde::ser;
 
-use nbt::raw;
+use raw;
 
 use error::{Error, Result};
 

@@ -3,11 +3,10 @@ extern crate serde_derive;
 extern crate serde;
 
 extern crate nbt;
-extern crate nbt_serde;
 
-use nbt_serde::error::{Error, Result};
-use nbt_serde::encode::to_writer;
-use nbt_serde::decode::from_reader;
+use nbt::de::from_reader;
+use nbt::ser::to_writer;
+use nbt::{Error, Result};
 
 #[test]
 fn no_root_compound() {
@@ -43,9 +42,7 @@ fn incomplete_nbt() {
 
     assert!(read.is_err());
     match read.unwrap_err() {
-        Error::Nbt(err) =>
-            assert_eq!(err.to_string(),
-                       "data does not represent a complete NbtValue"),
+        Error::IncompleteNbtValue => (),
         _ => panic!("encountered an unexpected error"),
     }
 }
@@ -66,7 +63,7 @@ fn unknown_tag() {
 
     assert!(read.is_err());
     match read.unwrap_err() {
-        Error::UnknownTag(t) => assert_eq!(t, 0x0f),
+        Error::InvalidTypeId(t) => assert_eq!(t, 0x0f),
         _ => panic!("encountered an unexpected error"),
     }
 }
