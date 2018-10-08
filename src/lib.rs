@@ -18,6 +18,5 @@ mod value;
 #[cfg(feature = "serde")] #[macro_use] mod macros;
 #[cfg(feature = "serde")] pub mod de;
 #[cfg(feature = "serde")] pub mod ser;
-#[cfg(feature = "serde")] pub mod serde_error;
 
 #[cfg(test)] mod tests;

@@ -5,7 +5,7 @@ use serde::ser;
 
 use raw;
 
-use serde_error::{Error, Result};
+use error::{Error, Result};
 
 /// Encode `value` in Named Binary Tag format to the given `io::Write`
 /// destination, with an optional header.
