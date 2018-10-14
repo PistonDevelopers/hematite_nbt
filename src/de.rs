@@ -13,7 +13,7 @@ use error::{Error, Result};
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_reader<R, T>(src: R) -> Result<T>
     where R: io::Read,
-          T: de::Deserialize,
+          T: de::DeserializeOwned,
 {
     let mut decoder = Decoder::new(src);
     de::Deserialize::deserialize(&mut decoder)
@@ -25,11 +25,10 @@ pub fn from_reader<R, T>(src: R) -> Result<T>
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_gzip<R, T>(src: R) -> Result<T>
     where R: io::Read,
-          T: de::Deserialize,
+          T: de::DeserializeOwned,
 {
     let gzip = try!(read::GzDecoder::new(src));
-    let mut decoder = Decoder::new(gzip);
-    de::Deserialize::deserialize(&mut decoder)
+    from_reader(gzip)
 }
 
 /// Decode an object from Named Binary Tag (NBT) format.
@@ -38,11 +37,10 @@ pub fn from_gzip<R, T>(src: R) -> Result<T>
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_zlib<R, T>(src: R) -> Result<T>
     where R: io::Read,
-          T: de::Deserialize,
+          T: de::DeserializeOwned,
 {
-    let mut zlib = read::ZlibDecoder::new(src);
-    let mut decoder = Decoder::new(&mut zlib);
-    de::Deserialize::deserialize(&mut decoder)
+    let zlib = read::ZlibDecoder::new(src);
+    from_reader(zlib)
 }
 
 /// Decode objects from Named Binary Tag (NBT) format.
@@ -61,11 +59,11 @@ impl<R> Decoder<R> where R: io::Read {
     }
 }
 
-impl<'a, R: io::Read> de::Deserializer for &'a mut Decoder<R> {
+impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
     type Error = Error;
 
-    fn deserialize<V>(self, _visitor: V) -> Result<V::Value>
-        where V: de::Visitor
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
+        where V: de::Visitor<'de>
     {
         // The decoder cannot deserialize types by default. It can only handle
         // maps and structs.
@@ -75,14 +73,14 @@ impl<'a, R: io::Read> de::Deserializer for &'a mut Decoder<R> {
     fn deserialize_struct<V>(self, _name: &'static str,
                              _fields: &'static [&'static str], visitor: V)
                              -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         self.deserialize_map(visitor)
     }
 
     fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V)
                                   -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         visitor.visit_unit()
     }
@@ -90,13 +88,13 @@ impl<'a, R: io::Read> de::Deserializer for &'a mut Decoder<R> {
     /// Deserialize newtype structs by their underlying types.
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V)
                                      -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         // Ignore the header (if there is one).
         let (tag, _) = try!(raw::emit_next_header(&mut self.reader));
@@ -107,11 +105,9 @@ impl<'a, R: io::Read> de::Deserializer for &'a mut Decoder<R> {
         }
     }
 
-    forward_to_deserialize! {
-        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char
-        str string bytes byte_buf unit seq seq_fixed_size
-        tuple_struct struct_field tuple option enum
-        ignored_any
+    forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string bytes byte_buf
+        unit seq tuple_struct tuple option enum identifier ignored_any
     }
 }
 
@@ -128,11 +124,11 @@ impl<'a, R> MapDecoder<'a, R> where R: io::Read {
     }
 }
 
-impl<'a, R: io::Read + 'a> de::MapVisitor for MapDecoder<'a, R> {
+impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
     type Error = Error;
 
-    fn visit_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
-        where K: de::DeserializeSeed
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+        where K: de::DeserializeSeed<'de>
     {
         let tag = try!(raw::read_bare_byte(&mut self.outer.reader));
 
@@ -150,8 +146,8 @@ impl<'a, R: io::Read + 'a> de::MapVisitor for MapDecoder<'a, R> {
         Ok(Some(seed.deserialize(&mut de)?))
     }
 
-    fn visit_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
-        where V: de::DeserializeSeed
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+        where V: de::DeserializeSeed<'de>
     {
         let mut de = match self.tag {
             Some(tag) => InnerDecoder { outer: self.outer, tag: tag },
@@ -191,11 +187,11 @@ impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
     }
 }
 
-impl<'a, R: io::Read + 'a> de::SeqVisitor for SeqDecoder<'a, R> {
+impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
     type Error = Error;
 
-    fn visit_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
-        where K: de::DeserializeSeed
+    fn next_element_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+        where K: de::DeserializeSeed<'de>
     {
         if self.current == self.length {
             return Ok(None);
@@ -210,8 +206,8 @@ impl<'a, R: io::Read + 'a> de::SeqVisitor for SeqDecoder<'a, R> {
     }
 
     /// We always know the length of an NBT list in advance.
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.length as usize, Some(self.length as usize))
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.length as usize)
     }
 }
 
@@ -221,11 +217,11 @@ struct InnerDecoder<'a, R: io::Read + 'a> {
     tag: u8,
 }
 
-impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
+impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecoder<'a, R> {
     type Error = Error;
 
-    fn deserialize<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+        where V: de::Visitor<'de>
     {
         let ref mut outer = self.outer;
 
@@ -247,7 +243,7 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
 
     /// Deserialize bool values from a byte. Fail if that byte is not 0 or 1.
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         match self.tag {
             0x01 => {
@@ -265,20 +261,20 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
 
     /// Interpret missing values as None.
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         visitor.visit_some(self)
     }
 
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         visitor.visit_unit()
     }
 
     fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V)
                                   -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         visitor.visit_unit()
     }
@@ -286,15 +282,13 @@ impl<'a, 'b: 'a, R: io::Read> de::Deserializer for &'b mut InnerDecoder<'a, R> {
     /// Deserialize newtype structs by their underlying types.
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V)
                                      -> Result<V::Value>
-        where V: de::Visitor
+        where V: de::Visitor<'de>
     {
         visitor.visit_newtype_struct(self)
     }
 
-    forward_to_deserialize! {
-        u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char
-        str string bytes byte_buf seq seq_fixed_size map
-        tuple_struct struct struct_field tuple enum
-        ignored_any
+    forward_to_deserialize_any! {
+        u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string bytes byte_buf seq
+        map tuple_struct struct tuple enum identifier ignored_any
     }
 }
