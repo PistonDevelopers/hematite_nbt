@@ -58,6 +58,7 @@ fn deserialize_small4() {
 }
 
 #[test]
+#[ignore]
 fn deserialize_big1() {
     let nbt = Big1 {
         list_test_compound: vec![
