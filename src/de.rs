@@ -11,9 +11,9 @@ use error::{Error, Result};
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_reader<'de, R, T>(src: R) -> Result<T>
+pub fn from_reader<R, T>(src: R) -> Result<T>
     where R: io::Read,
-          T: de::Deserialize<'de>,
+          T: de::DeserializeOwned,
 {
     let mut decoder = Decoder::new(src);
     de::Deserialize::deserialize(&mut decoder)
@@ -23,26 +23,24 @@ pub fn from_reader<'de, R, T>(src: R) -> Result<T>
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_gzip<'de, R, T>(src: R) -> Result<T>
+pub fn from_gzip<R, T>(src: R) -> Result<T>
     where R: io::Read,
-          T: de::Deserialize<'de>,
+          T: de::DeserializeOwned,
 {
     let gzip = try!(read::GzDecoder::new(src));
-    let mut decoder = Decoder::new(gzip);
-    de::Deserialize::deserialize(&mut decoder)
+    from_reader(gzip)
 }
 
 /// Decode an object from Named Binary Tag (NBT) format.
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_zlib<'de, R, T>(src: R) -> Result<T>
+pub fn from_zlib<R, T>(src: R) -> Result<T>
     where R: io::Read,
-          T: de::Deserialize<'de>,
+          T: de::DeserializeOwned,
 {
-    let mut zlib = read::ZlibDecoder::new(src);
-    let mut decoder = Decoder::new(&mut zlib);
-    de::Deserialize::deserialize(&mut decoder)
+    let zlib = read::ZlibDecoder::new(src);
+    from_reader(zlib)
 }
 
 /// Decode objects from Named Binary Tag (NBT) format.
@@ -61,7 +59,7 @@ impl<R> Decoder<R> where R: io::Read {
     }
 }
 
-impl<'a, 'de, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
+impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
     type Error = Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
@@ -126,7 +124,7 @@ impl<'a, R> MapDecoder<'a, R> where R: io::Read {
     }
 }
 
-impl<'a, 'de, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
+impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -189,7 +187,7 @@ impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
     }
 }
 
-impl<'a, 'de, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
+impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
     type Error = Error;
 
     fn next_element_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
