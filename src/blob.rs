@@ -47,7 +47,7 @@ impl Blob {
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
-    pub fn from_reader(mut src: &mut io::Read) -> Result<Blob> {
+    pub fn from_reader(src: &mut io::Read) -> Result<Blob> {
         let header = try!(Value::read_header(src));
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
