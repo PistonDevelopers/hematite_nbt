@@ -45,7 +45,7 @@ impl Value {
     }
 
     /// A string representation of this tag.
-    fn tag_name(&self) -> &str {
+    pub fn tag_name(&self) -> &str {
         match *self {
             Value::Byte(_)      => "TAG_Byte",
             Value::Short(_)     => "TAG_Short",
@@ -187,10 +187,8 @@ impl Value {
             e => Err(Error::InvalidTypeId(e))
         }
     }
-}
 
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    pub fn print(&self, f: &mut fmt::Formatter, offset: usize) -> fmt::Result {
         match *self {
             Value::Byte(v)   => write!(f, "{}", v),
             Value::Short(v)  => write!(f, "{}", v),
@@ -200,29 +198,39 @@ impl fmt::Display for Value {
             Value::Double(v) => write!(f, "{}", v),
             Value::ByteArray(ref v) => write!(f, "{:?}", v),
             Value::String(ref v) => write!(f, "{}", v),
+            Value::IntArray(ref v) => write!(f, "{:?}", v),
+            Value::LongArray(ref v) => write!(f, "{:?}", v),
             Value::List(ref v) => {
                 if v.len() == 0 {
                     write!(f, "zero entries")
                 } else {
-                    try!(write!(f, "{} entries of type {}\n{{\n", v.len(), v[0].tag_name()));
+                    write!(f, "{} entries of type {}\n{:>width$}\n", v.len(), v[0].tag_name(), "{", width = offset + 1)?;
                     for tag in v {
-                        try!(write!(f, "{}(None): {}\n", tag.tag_name(), tag));
+                        let new_offset = offset + 2;
+                        write!(f, "{:>width$}(None): ", tag.tag_name(), width = new_offset + tag.tag_name().len())?;
+                        tag.print(f, new_offset)?;
+                        write!(f, "\n")?;
                     }
-                    try!(write!(f, "}}"));
-                    Ok(())
+                    write!(f, "{:>width$}", "}", width = offset + 1)
                 }
             }
             Value::Compound(ref v) => {
-                try!(write!(f, "{} entry(ies)\n{{\n", v.len()));
+                write!(f, "{} entry(ies)\n{:>width$}\n", v.len(), "{", width = offset + 1)?;
                 for (name, tag) in v {
-                    try!(write!(f, "{}(\"{}\"): {}\n", tag.tag_name(), name, tag));
+                    let new_offset = offset + 2;
+                    write!(f, "{:>width$}({}): ", tag.tag_name(), name, width = new_offset + tag.tag_name().len())?;
+                    tag.print(f, new_offset)?;
+                    write!(f, "\n")?;
                 }
-                try!(write!(f, "}}"));
-                Ok(())
+                write!(f, "{:>width$}", "}", width = offset + 1)
             }
-            Value::IntArray(ref v) => write!(f, "{:?}", v),
-            Value::LongArray(ref v) => write!(f, "{:?}", v),
         }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.print(f, 0)
     }
 }
 

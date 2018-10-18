@@ -3,11 +3,13 @@ use std::fmt;
 use std::io;
 use std::ops::Index;
 
+use byteorder::WriteBytesExt;
 use flate2::Compression;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use flate2::write::{GzEncoder, ZlibEncoder};
 
 use error::{Error, Result};
+use raw;
 use value::Value;
 
 /// A generic, complete object in Named Binary Tag format.
@@ -36,14 +38,13 @@ use value::Value;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Blob {
     title: String,
-    content: Value
+    content: HashMap<String, Value>
 }
 
 impl Blob {
     /// Create a new NBT file format representation with the given name.
     pub fn new(title: String) -> Blob {
-        let map: HashMap<String, Value> = HashMap::new();
-        Blob { title: title, content: Value::Compound(map) }
+        Blob { title: title, content: HashMap::new() }
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
@@ -56,7 +57,10 @@ impl Blob {
             return Err(Error::NoRootCompound);
         }
         let content = try!(Value::from_reader(header.0, src));
-        Ok(Blob { title: header.1, content: content })
+        match content {
+            Value::Compound(map) => Ok(Blob { title: header.1, content: map }),
+            _ => Err(Error::NoRootCompound),
+        }
     }
 
     /// Extracts an `Blob` object from an `io::Read` source that is
@@ -75,9 +79,14 @@ impl Blob {
 
     /// Writes the binary representation of this `Blob` to an `io::Write`
     /// destination.
-    pub fn write(&self, dst: &mut io::Write) -> Result<()> {
-        try!(self.content.write_header(dst, &self.title));
-        self.content.write(dst)
+    pub fn write<W>(&self, mut dst: &mut W) -> Result<()> where W: ?Sized + io::Write {
+        dst.write_u8(0x0a)?;
+        raw::write_bare_string(&mut dst, &self.title)?;
+        for (name, ref nbt) in self.content.iter() {
+            nbt.write_header(&mut dst, &name)?;
+            nbt.write(&mut dst)?;
+        }
+        raw::close_nbt(&mut dst)
     }
 
     /// Writes the binary representation of this `Blob`, compressed using
@@ -115,18 +124,18 @@ impl Blob {
                 }
             }
         }
-        if let Value::Compound(ref mut v) = self.content {
-            v.insert(name, nvalue);
-        } else {
-            unreachable!();
-        }
+        self.content.insert(name, nvalue);
         Ok(())
     }
 
     /// The uncompressed length of this `Blob`, in bytes.
     pub fn len(&self) -> usize {
         // tag + name + content
-        1 + 2 + self.title.len() + self.content.len()
+        let header = 1 + 2 + self.title.len();
+        let content = self.content.iter().map(|(name, nbt)| {
+            3 + name.len() + nbt.len()
+        }).fold(0, |acc, item| acc + item);
+        header + content + 1
     }
 }
 
@@ -134,15 +143,18 @@ impl<'a> Index<&'a str> for Blob {
     type Output = Value;
 
     fn index<'b>(&'b self, s: &'a str) -> &'b Value {
-        match self.content {
-            Value::Compound(ref v) => v.get(s).unwrap(),
-            _ => unreachable!()
-        }
+        self.content.get(s).unwrap()
     }
 }
 
 impl fmt::Display for Blob {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TAG_Compound(\"{}\"): {}", self.title, self.content)
+        write!(f, "TAG_Compound(\"{}\"): {} entry(ies)\n{{\n", self.title, self.content.len())?;
+        for (name, tag) in self.content.iter() {
+            write!(f, "  {}(\"{}\"): ", tag.tag_name(), name)?;
+            tag.print(f, 2)?;
+            write!(f, "\n")?;
+        }
+        write!(f, "}}")
     }
 }
