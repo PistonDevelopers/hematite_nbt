@@ -165,3 +165,18 @@ impl fmt::Display for Blob {
         write!(f, "}}")
     }
 }
+
+#[cfg(feature = "serde")]
+use serde::{self, ser::SerializeMap};
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Blob {
+    fn serialize<S>(&self, serializer: S) -> serde::export::Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(self.content.len()))?;
+        state.serialize_entry(&self.title, &self.content)?;
+        state.end()
+    }
+}
