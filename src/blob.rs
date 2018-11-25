@@ -116,8 +116,7 @@ impl Blob {
     pub fn insert<V>(&mut self, name: String, value: V) -> Result<()>
            where V: Into<Value> {
         // The follow prevents `List`s with heterogeneous tags from being
-        // inserted into the file. It would be nicer to return an error, but
-        // this would depart from the `HashMap` API for `insert`.
+        // inserted into the file.
         let nvalue = value.into();
         if let Value::List(ref vals) = nvalue {
             if vals.len() != 0 {
