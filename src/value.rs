@@ -141,16 +141,6 @@ impl Value {
         }
     }
 
-    /// Reads any valid `Value` header (that is, a type ID and a title of
-    /// arbitrary UTF-8 bytes) from an `io::Read` source.
-    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String)> {
-        let id = try!(src.read_u8());
-        if id == 0x00 { return Ok((0x00, "".to_string())); }
-        // Extract the name.
-        let name = try!(raw::read_bare_string(&mut src));
-        Ok((id, name))
-    }
-
     /// Reads the payload of an `Value` with a given type ID from an
     /// `io::Read` source.
     pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<Value> {
@@ -175,7 +165,7 @@ impl Value {
             0x0a => { // Compound
                 let mut buf = HashMap::new();
                 loop {
-                    let (id, name) = try!(Value::read_header(src));
+                    let (id, name) = try!(raw::emit_next_header(&mut src));
                     if id == 0x00 { break; }
                     let tag = try!(Value::from_reader(id, src));
                     buf.insert(name, tag);

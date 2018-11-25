@@ -53,17 +53,17 @@ impl Blob {
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
-    pub fn from_reader(src: &mut io::Read) -> Result<Blob> {
-        let header = try!(Value::read_header(src));
+    pub fn from_reader(mut src: &mut io::Read) -> Result<Blob> {
+        let (tag, title) = try!(raw::emit_next_header(&mut src));
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
         // have a top-level Compound.
-        if header.0 != 0x0a {
+        if tag != 0x0a {
             return Err(Error::NoRootCompound);
         }
-        let content = try!(Value::from_reader(header.0, src));
+        let content = try!(Value::from_reader(tag, src));
         match content {
-            Value::Compound(map) => Ok(Blob { title: header.1, content: map }),
+            Value::Compound(map) => Ok(Blob { title: title, content: map }),
             _ => Err(Error::NoRootCompound),
         }
     }
