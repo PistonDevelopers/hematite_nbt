@@ -26,7 +26,7 @@ use value::Value;
 /// use nbt::{Blob, Value};
 ///
 /// // Create a `Blob` from key/value pairs.
-/// let mut nbt = Blob::new("".to_string());
+/// let mut nbt = Blob::new();
 /// nbt.insert("name".to_string(), "Herobrine").unwrap();
 /// nbt.insert("health".to_string(), 100i8).unwrap();
 /// nbt.insert("food".to_string(), 20.0f32).unwrap();
@@ -42,9 +42,14 @@ pub struct Blob {
 }
 
 impl Blob {
+    /// Create a new NBT file format representation with an empty name.
+    pub fn new() -> Blob {
+        Blob { title: "".to_string(), content: HashMap::new() }
+    }
+
     /// Create a new NBT file format representation with the given name.
-    pub fn new(title: String) -> Blob {
-        Blob { title: title, content: HashMap::new() }
+    pub fn named<S>(name: S) -> Blob where S: Into<String> {
+        Blob { title: name.into(), content: HashMap::new() }
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.

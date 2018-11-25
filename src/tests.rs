@@ -10,7 +10,7 @@ use value::Value;
 
 #[test]
 fn nbt_nonempty() {
-    let mut nbt = Blob::new("".to_string());
+    let mut nbt = Blob::new();
     nbt.insert("name".to_string(),      "Herobrine").unwrap();
     nbt.insert("health".to_string(),    100i8).unwrap();
     nbt.insert("food".to_string(),      20.0f32).unwrap();
@@ -57,7 +57,7 @@ fn nbt_nonempty() {
 
 #[test]
 fn nbt_empty_nbtfile() {
-    let nbt = Blob::new("".to_string());
+    let nbt = Blob::new();
 
     let bytes = vec![
         0x0a,
@@ -83,7 +83,7 @@ fn nbt_empty_nbtfile() {
 fn nbt_nested_compound() {
     let mut inner = HashMap::new();
     inner.insert("test".to_string(), Value::Byte(123));
-    let mut nbt = Blob::new("".to_string());
+    let mut nbt = Blob::new();
     nbt.insert("inner".to_string(), Value::Compound(inner)).unwrap();
 
     let bytes = vec![
@@ -116,7 +116,7 @@ fn nbt_nested_compound() {
 
 #[test]
 fn nbt_empty_list() {
-    let mut nbt = Blob::new("".to_string());
+    let mut nbt = Blob::new();
     nbt.insert("list".to_string(), Value::List(Vec::new())).unwrap();
 
     let bytes = vec![
@@ -186,7 +186,7 @@ fn nbt_invalid_id() {
 
 #[test]
 fn nbt_invalid_list() {
-    let mut nbt = Blob::new("".to_string());
+    let mut nbt = Blob::new();
     let mut badlist = Vec::new();
     badlist.push(Value::Byte(1));
     badlist.push(Value::Short(1));
@@ -206,7 +206,7 @@ fn nbt_bad_compression() {
 #[test]
 fn nbt_compression() {
     // Create a non-trivial Blob.
-    let mut nbt = Blob::new("".to_string());
+    let mut nbt = Blob::new();
     nbt.insert("name".to_string(), Value::String("Herobrine".to_string())).unwrap();
     nbt.insert("health".to_string(), Value::Byte(100)).unwrap();
     nbt.insert("food".to_string(), Value::Float(20.0)).unwrap();
