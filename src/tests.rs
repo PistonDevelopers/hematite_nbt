@@ -11,11 +11,11 @@ use value::Value;
 #[test]
 fn nbt_nonempty() {
     let mut nbt = Blob::new();
-    nbt.insert("name".to_string(),      "Herobrine").unwrap();
-    nbt.insert("health".to_string(),    100i8).unwrap();
-    nbt.insert("food".to_string(),      20.0f32).unwrap();
-    nbt.insert("emeralds".to_string(),  12345i16).unwrap();
-    nbt.insert("timestamp".to_string(), 1424778774i32).unwrap();
+    nbt.insert("name", "Herobrine").unwrap();
+    nbt.insert("health", 100i8).unwrap();
+    nbt.insert("food", 20.0f32).unwrap();
+    nbt.insert("emeralds", 12345i16).unwrap();
+    nbt.insert("timestamp", 1424778774i32).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -84,7 +84,7 @@ fn nbt_nested_compound() {
     let mut inner = HashMap::new();
     inner.insert("test".to_string(), Value::Byte(123));
     let mut nbt = Blob::new();
-    nbt.insert("inner".to_string(), Value::Compound(inner)).unwrap();
+    nbt.insert("inner", Value::Compound(inner)).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -117,7 +117,7 @@ fn nbt_nested_compound() {
 #[test]
 fn nbt_empty_list() {
     let mut nbt = Blob::new();
-    nbt.insert("list".to_string(), Value::List(Vec::new())).unwrap();
+    nbt.insert("list", Value::List(Vec::new())).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -191,7 +191,7 @@ fn nbt_invalid_list() {
     badlist.push(Value::Byte(1));
     badlist.push(Value::Short(1));
     // Will fail to insert, because the List is heterogeneous.
-    assert_eq!(nbt.insert("list".to_string(), Value::List(badlist)),
+    assert_eq!(nbt.insert("list", Value::List(badlist)),
                Err(Error::HeterogeneousList));
 }
 
@@ -207,11 +207,11 @@ fn nbt_bad_compression() {
 fn nbt_compression() {
     // Create a non-trivial Blob.
     let mut nbt = Blob::new();
-    nbt.insert("name".to_string(), Value::String("Herobrine".to_string())).unwrap();
-    nbt.insert("health".to_string(), Value::Byte(100)).unwrap();
-    nbt.insert("food".to_string(), Value::Float(20.0)).unwrap();
-    nbt.insert("emeralds".to_string(), Value::Short(12345)).unwrap();
-    nbt.insert("timestamp".to_string(), Value::Int(1424778774)).unwrap();
+    nbt.insert("name", Value::String("Herobrine".to_string())).unwrap();
+    nbt.insert("health", Value::Byte(100)).unwrap();
+    nbt.insert("food", Value::Float(20.0)).unwrap();
+    nbt.insert("emeralds", Value::Short(12345)).unwrap();
+    nbt.insert("timestamp", Value::Int(1424778774)).unwrap();
 
     // Test zlib encoding/decoding.
     let mut zlib_dst = Vec::new();

@@ -27,9 +27,9 @@ use value::Value;
 ///
 /// // Create a `Blob` from key/value pairs.
 /// let mut nbt = Blob::new();
-/// nbt.insert("name".to_string(), "Herobrine").unwrap();
-/// nbt.insert("health".to_string(), 100i8).unwrap();
-/// nbt.insert("food".to_string(), 20.0f32).unwrap();
+/// nbt.insert("name", "Herobrine").unwrap();
+/// nbt.insert("health", 100i8).unwrap();
+/// nbt.insert("food", 20.0f32).unwrap();
 ///
 /// // Write a compressed binary representation to a byte array.
 /// let mut dst = Vec::new();
@@ -113,8 +113,8 @@ impl Blob {
     /// This method will also return an error if a `Value::List` with
     /// heterogeneous elements is passed in, because this is illegal in the NBT
     /// file format.
-    pub fn insert<V>(&mut self, name: String, value: V) -> Result<()>
-           where V: Into<Value> {
+    pub fn insert<S, V>(&mut self, name: S, value: V) -> Result<()>
+           where S: Into<String>, V: Into<Value> {
         // The follow prevents `List`s with heterogeneous tags from being
         // inserted into the file.
         let nvalue = value.into();
@@ -128,7 +128,7 @@ impl Blob {
                 }
             }
         }
-        self.content.insert(name, nvalue);
+        self.content.insert(name.into(), nvalue);
         Ok(())
     }
 
