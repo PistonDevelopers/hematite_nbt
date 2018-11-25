@@ -88,7 +88,8 @@ impl Blob {
         dst.write_u8(0x0a)?;
         raw::write_bare_string(&mut dst, &self.title)?;
         for (name, ref nbt) in self.content.iter() {
-            nbt.write_header(&mut dst, &name)?;
+            dst.write_u8(nbt.id())?;
+            raw::write_bare_string(&mut dst, name)?;
             nbt.write(&mut dst)?;
         }
         raw::close_nbt(&mut dst)

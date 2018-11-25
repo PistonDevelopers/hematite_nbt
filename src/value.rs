@@ -88,13 +88,6 @@ impl Value {
         }
     }
 
-    /// Writes the header (that is, the value's type ID and optionally a title)
-    /// of this `Value` to an `io::Write` destination.
-    pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<()> {
-        try!(dst.write_u8(self.id()));
-        raw::write_bare_string(&mut dst, title)
-    }
-
     /// Writes the payload of this `Value` to an `io::Write` destination.
     pub fn write(&self, mut dst: &mut io::Write) -> Result<()> {
         match *self {
@@ -130,10 +123,10 @@ impl Value {
             Value::Compound(ref vals)  => {
                 for (name, ref nbt) in vals {
                     // Write the header for the tag.
-                    try!(nbt.write_header(dst, &name));
+                    dst.write_u8(nbt.id())?;
+                    raw::write_bare_string(&mut dst, name)?;
                     try!(nbt.write(dst));
                 }
-
                 raw::close_nbt(&mut dst)
             },
             Value::IntArray(ref vals) => raw::write_bare_int_array(&mut dst, &vals[..]),
