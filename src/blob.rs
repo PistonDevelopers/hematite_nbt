@@ -136,16 +136,6 @@ impl Blob {
         self.content.insert(name.into(), nvalue);
         Ok(())
     }
-
-    /// The uncompressed length of this `Blob`, in bytes.
-    pub fn len(&self) -> usize {
-        // tag + name + content
-        let header = 1 + 2 + self.title.len();
-        let content = self.content.iter().map(|(name, nbt)| {
-            3 + name.len() + nbt.len()
-        }).fold(0, |acc, item| acc + item);
-        header + content + 1
-    }
 }
 
 impl<'a> Index<&'a str> for Blob {

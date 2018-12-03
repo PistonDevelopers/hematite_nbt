@@ -62,32 +62,6 @@ impl Value {
         }
     }
 
-    /// The length of the payload of this `Value`, in bytes.
-    pub fn len(&self) -> usize {
-        match *self {
-            Value::Byte(_)            => 1,
-            Value::Short(_)           => 2,
-            Value::Int(_)             => 4,
-            Value::Long(_)            => 8,
-            Value::Float(_)           => 4,
-            Value::Double(_)          => 8,
-            Value::ByteArray(ref val) => 4 + val.len(), // size + bytes
-            Value::String(ref val)    => 2 + val.len(), // size + bytes
-            Value::List(ref vals)     => {
-                // tag + size + payload for each element
-                5 + vals.iter().map(|x| x.len()).fold(0, |acc, item| acc + item)
-            },
-            Value::Compound(ref vals) => {
-                vals.iter().map(|(name, nbt)| {
-                    // tag + name + payload for each entry
-                    3 + name.len() + nbt.len()
-                }).fold(0, |acc, item| acc + item) + 1 // + u8 for the Tag_End
-            },
-            Value::IntArray(ref val)  => 4 + 4 * val.len(),
-            Value::LongArray(ref val) => 4 + 8 * val.len(),
-        }
-    }
-
     /// Writes the payload of this `Value` to an `io::Write` destination.
     pub fn to_writer<W>(&self, mut dst: &mut W) -> Result<()>
         where W: io::Write

@@ -45,7 +45,9 @@ fn nbt_nonempty() {
     ];
 
     // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
+    let mut dst = Vec::new();
+    nbt.write(&mut dst).unwrap();
+    assert_eq!(bytes.len(), dst.len());
 
     // We can only test if the decoded bytes match, since the HashMap does
     // not guarantee order (and so encoding is likely to be different, but
@@ -64,9 +66,6 @@ fn nbt_empty_nbtfile() {
             0x00, 0x00,
         0x00
     ];
-
-    // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
 
     // Test encoding.
     let mut dst = Vec::new();
@@ -100,9 +99,6 @@ fn nbt_nested_compound() {
         0x00
     ];
 
-    // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
-
     // Test encoding.
     let mut dst = Vec::new();
     nbt.write(&mut dst).unwrap();
@@ -129,9 +125,6 @@ fn nbt_empty_list() {
                 0x00, 0x00, 0x00, 0x00,
         0x00
     ];
-
-    // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
 
     // Test encoding.
     let mut dst = Vec::new();
@@ -231,7 +224,9 @@ fn nbt_bigtest() {
     let mut bigtest_file = File::open("tests/big1.nbt").unwrap();
     let bigtest = Blob::from_gzip(&mut bigtest_file).unwrap();
     // This is a pretty indirect way of testing correctness.
-    assert_eq!(1544, bigtest.len());
+    let mut dst = Vec::new();
+    bigtest.write(&mut dst).unwrap();
+    assert_eq!(1544, dst.len());
 }
 
 #[test]
