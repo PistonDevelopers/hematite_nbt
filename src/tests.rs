@@ -266,3 +266,56 @@ fn nbt_arrays() {
 //        nbt.write(&mut io::sink())
 //    });
 //}
+
+#[test]
+#[cfg(feature = "serde")]
+fn serde_blob() {
+    use de::from_reader;
+    use ser::to_writer;
+
+    let mut nbt = Blob::new();
+    nbt.insert("name", "Herobrine").unwrap();
+    nbt.insert("health", 100i8).unwrap();
+    nbt.insert("food", 20.0f32).unwrap();
+    nbt.insert("emeralds", 12345i16).unwrap();
+    nbt.insert("timestamp", 1424778774i32).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x08,
+                0x00, 0x04,
+                0x6e, 0x61, 0x6d, 0x65,
+                0x00, 0x09,
+                0x48, 0x65, 0x72, 0x6f, 0x62, 0x72, 0x69, 0x6e, 0x65,
+            0x01,
+                0x00, 0x06,
+                0x68, 0x65, 0x61, 0x6c, 0x74, 0x68,
+                0x64,
+            0x05,
+                0x00, 0x04,
+                0x66, 0x6f, 0x6f, 0x64,
+                0x41, 0xa0, 0x00, 0x00,
+            0x02,
+                0x00, 0x08,
+                0x65, 0x6d, 0x65, 0x72, 0x61, 0x6c, 0x64, 0x73,
+                0x30, 0x39,
+            0x03,
+                0x00, 0x09,
+                0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
+                0x54, 0xec, 0x66, 0x16,
+        0x00
+    ];
+
+    // Roundtrip.
+
+    let mut src = io::Cursor::new(bytes.clone());
+    let file: Blob = from_reader(&mut src).unwrap();
+    assert_eq!(&file, &nbt);
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &nbt, None).unwrap();
+    // We can only test if the decoded bytes match, since the HashMap does
+    // not guarantee order (and so encoding is likely to be different, but
+    // still correct).
+    assert_eq!(&bytes.len(), &dst.len());
+}
