@@ -8,7 +8,7 @@ pub use blob::Blob;
 pub use error::{Error, Result};
 pub use value::Value;
 
-pub mod raw;
+mod raw;
 mod blob;
 mod error;
 mod value;
