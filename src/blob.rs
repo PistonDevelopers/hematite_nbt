@@ -175,8 +175,11 @@ impl serde::Serialize for Blob {
     where
         S: serde::ser::Serializer,
     {
+        // No support for named Blobs.
         let mut state = serializer.serialize_map(Some(self.content.len()))?;
-        state.serialize_entry(&self.title, &self.content)?;
+        for (k, v) in &self.content {
+            state.serialize_entry(&k, &v)?;
+        }
         state.end()
     }
 }
