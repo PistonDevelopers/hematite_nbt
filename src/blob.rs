@@ -33,7 +33,7 @@ use value::Value;
 ///
 /// // Write a compressed binary representation to a byte array.
 /// let mut dst = Vec::new();
-/// nbt.write_zlib(&mut dst).unwrap();
+/// nbt.to_zlib_writer(&mut dst).unwrap();
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Blob {
@@ -72,7 +72,9 @@ impl Blob {
 
     /// Extracts an `Blob` object from an `io::Read` source that is
     /// compressed using the Gzip format.
-    pub fn from_gzip(src: &mut io::Read) -> Result<Blob> {
+    pub fn from_gzip_reader<R>(src: &mut R) -> Result<Blob>
+        where R: io::Read
+    {
         // Reads the gzip header, and fails if it is incorrect.
         let mut data = try!(GzDecoder::new(src));
         Blob::from_reader(&mut data)
@@ -80,13 +82,15 @@ impl Blob {
 
     /// Extracts an `Blob` object from an `io::Read` source that is
     /// compressed using the zlib format.
-    pub fn from_zlib(src: &mut io::Read) -> Result<Blob> {
+    pub fn from_zlib_reader<R>(src: &mut R) -> Result<Blob>
+        where R: io::Read
+    {
         Blob::from_reader(&mut ZlibDecoder::new(src))
     }
 
     /// Writes the binary representation of this `Blob` to an `io::Write`
     /// destination.
-    pub fn write<W>(&self, mut dst: &mut W) -> Result<()>
+    pub fn to_writer<W>(&self, mut dst: &mut W) -> Result<()>
         where W: io::Write
     {
         dst.write_u8(0x0a)?;
@@ -101,14 +105,18 @@ impl Blob {
 
     /// Writes the binary representation of this `Blob`, compressed using
     /// the Gzip format, to an `io::Write` destination.
-    pub fn write_gzip(&self, dst: &mut io::Write) -> Result<()> {
-        self.write(&mut GzEncoder::new(dst, Compression::Default))
+    pub fn to_gzip_writer<W>(&self, dst: &mut W) -> Result<()>
+        where W: io::Write
+    {
+        self.to_writer(&mut GzEncoder::new(dst, Compression::Default))
     }
 
     /// Writes the binary representation of this `Blob`, compressed using
     /// the Zlib format, to an `io::Write` dst.
-    pub fn write_zlib(&self, dst: &mut io::Write) -> Result<()> {
-        self.write(&mut ZlibEncoder::new(dst, Compression::Default))
+    pub fn to_zlib_writer<W>(&self, dst: &mut W) -> Result<()>
+        where W: io::Write
+    {
+        self.to_writer(&mut ZlibEncoder::new(dst, Compression::Default))
     }
 
     /// Insert an `Value` with a given name into this `Blob` object. This

@@ -46,7 +46,7 @@ fn nbt_nonempty() {
 
     // Test correct length.
     let mut dst = Vec::new();
-    nbt.write(&mut dst).unwrap();
+    nbt.to_writer(&mut dst).unwrap();
     assert_eq!(bytes.len(), dst.len());
 
     // We can only test if the decoded bytes match, since the HashMap does
@@ -69,7 +69,7 @@ fn nbt_empty_nbtfile() {
 
     // Test encoding.
     let mut dst = Vec::new();
-    nbt.write(&mut dst).unwrap();
+    nbt.to_writer(&mut dst).unwrap();
     assert_eq!(&dst, &bytes);
 
     // Test decoding.
@@ -101,7 +101,7 @@ fn nbt_nested_compound() {
 
     // Test encoding.
     let mut dst = Vec::new();
-    nbt.write(&mut dst).unwrap();
+    nbt.to_writer(&mut dst).unwrap();
     assert_eq!(&dst, &bytes);
 
     // Test decoding.
@@ -128,7 +128,7 @@ fn nbt_empty_list() {
 
     // Test encoding.
     let mut dst = Vec::new();
-    nbt.write(&mut dst).unwrap();
+    nbt.to_writer(&mut dst).unwrap();
     assert_eq!(&dst, &bytes);
 
     // Test decoding.
@@ -192,8 +192,8 @@ fn nbt_invalid_list() {
 fn nbt_bad_compression() {
     // These aren't in the zlib or gzip format, so they'll fail.
     let bytes = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    assert!(Blob::from_gzip(&mut io::Cursor::new(&bytes[..])).is_err());
-    assert!(Blob::from_zlib(&mut io::Cursor::new(&bytes[..])).is_err());
+    assert!(Blob::from_gzip_reader(&mut io::Cursor::new(&bytes[..])).is_err());
+    assert!(Blob::from_zlib_reader(&mut io::Cursor::new(&bytes[..])).is_err());
 }
 
 #[test]
@@ -208,24 +208,24 @@ fn nbt_compression() {
 
     // Test zlib encoding/decoding.
     let mut zlib_dst = Vec::new();
-    nbt.write_zlib(&mut zlib_dst).unwrap();
-    let zlib_file = Blob::from_zlib(&mut io::Cursor::new(zlib_dst)).unwrap();
+    nbt.to_zlib_writer(&mut zlib_dst).unwrap();
+    let zlib_file = Blob::from_zlib_reader(&mut io::Cursor::new(zlib_dst)).unwrap();
     assert_eq!(&nbt, &zlib_file);
 
     // Test gzip encoding/decoding.
     let mut gzip_dst = Vec::new();
-    nbt.write_gzip(&mut gzip_dst).unwrap();
-    let gz_file = Blob::from_gzip(&mut io::Cursor::new(gzip_dst)).unwrap();
+    nbt.to_gzip_writer(&mut gzip_dst).unwrap();
+    let gz_file = Blob::from_gzip_reader(&mut io::Cursor::new(gzip_dst)).unwrap();
     assert_eq!(&nbt, &gz_file);
 }
 
 #[test]
 fn nbt_bigtest() {
     let mut bigtest_file = File::open("tests/big1.nbt").unwrap();
-    let bigtest = Blob::from_gzip(&mut bigtest_file).unwrap();
+    let bigtest = Blob::from_gzip_reader(&mut bigtest_file).unwrap();
     // This is a pretty indirect way of testing correctness.
     let mut dst = Vec::new();
-    bigtest.write(&mut dst).unwrap();
+    bigtest.to_writer(&mut dst).unwrap();
     assert_eq!(1544, dst.len());
 }
 
