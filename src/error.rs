@@ -49,6 +49,9 @@ pub enum Error {
     /// An error encountered when serializing a Rust type with no meaningful NBT
     /// representation.
     UnrepresentableType(&'static str),
+    /// An error encountered when trying to (de)serialize a map key with a
+    /// non-string type.
+    NonStringMapKey,
 }
 
 impl fmt::Display for Error {
@@ -79,6 +82,7 @@ impl StdError for Error {
             Error::NoRootCompound     => "the root value must be Compound-like (tag = 0x0a)",
             Error::InvalidUtf8        => "a string is not valid UTF-8",
             Error::IncompleteNbtValue => "data does not represent a complete NbtValue",
+            Error::NonStringMapKey    => "encountered a non-string map key",
             Error::TagMismatch(_, _)  => "encountered one NBT tag but expected another",
             Error::UnexpectedField(_) => "encountered an unexpected field",
             Error::NonBooleanByte(_)  => "encountered a non-boolean byte value inside a boolean",
