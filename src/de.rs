@@ -1,3 +1,5 @@
+//! Deserialize Named Binary Tag data to a Rust data structure.
+
 use std::io;
 
 use serde::de;

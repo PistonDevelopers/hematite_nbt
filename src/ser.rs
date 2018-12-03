@@ -1,3 +1,5 @@
+//! Serialize a Rust data structure into Named Binary Tag data.
+
 use std::io;
 
 use serde;
