@@ -183,3 +183,15 @@ impl serde::Serialize for Blob {
         state.end()
     }
 }
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Blob {
+    fn deserialize<D>(deserializer: D) -> serde::export::Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        // No support for named Blobs.
+        let map: HashMap<String, Value> = serde::de::Deserialize::deserialize(deserializer)?;
+        Ok(Blob { title: "".to_string(), content: map })
+    }
+}
