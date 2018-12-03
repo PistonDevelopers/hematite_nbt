@@ -53,8 +53,10 @@ impl Blob {
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
-    pub fn from_reader(mut src: &mut io::Read) -> Result<Blob> {
-        let (tag, title) = try!(raw::emit_next_header(&mut src));
+    pub fn from_reader<R>(src: &mut R) -> Result<Blob>
+        where R: io::Read
+    {
+        let (tag, title) = try!(raw::emit_next_header(src));
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
         // have a top-level Compound.
@@ -84,13 +86,15 @@ impl Blob {
 
     /// Writes the binary representation of this `Blob` to an `io::Write`
     /// destination.
-    pub fn write<W>(&self, mut dst: &mut W) -> Result<()> where W: ?Sized + io::Write {
+    pub fn write<W>(&self, mut dst: &mut W) -> Result<()>
+        where W: io::Write
+    {
         dst.write_u8(0x0a)?;
         raw::write_bare_string(&mut dst, &self.title)?;
         for (name, ref nbt) in self.content.iter() {
             dst.write_u8(nbt.id())?;
             raw::write_bare_string(&mut dst, name)?;
-            nbt.write(&mut dst)?;
+            nbt.to_writer(&mut dst)?;
         }
         raw::close_nbt(&mut dst)
     }
