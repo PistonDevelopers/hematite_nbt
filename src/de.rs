@@ -25,7 +25,7 @@ pub fn from_reader<R, T>(src: R) -> Result<T>
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_gzip<R, T>(src: R) -> Result<T>
+pub fn from_gzip_reader<R, T>(src: R) -> Result<T>
     where R: io::Read,
           T: de::DeserializeOwned,
 {
@@ -37,7 +37,7 @@ pub fn from_gzip<R, T>(src: R) -> Result<T>
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_zlib<R, T>(src: R) -> Result<T>
+pub fn from_zlib_reader<R, T>(src: R) -> Result<T>
     where R: io::Read,
           T: de::DeserializeOwned,
 {

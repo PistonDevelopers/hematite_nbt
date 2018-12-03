@@ -9,7 +9,7 @@ extern crate nbt;
 
 use std::fs::File;
 
-use nbt::de::{from_reader, from_gzip};
+use nbt::de::{from_reader, from_gzip_reader};
 
 // Include structure definitions.
 include!("data.rs.in");
@@ -161,24 +161,24 @@ fn deserialize_big1() {
         int_test: 2147483647,
     };
     let mut file = File::open("tests/big1.nbt").unwrap();
-    let read: Big1 = from_gzip(&mut file).unwrap();
+    let read: Big1 = from_gzip_reader(&mut file).unwrap();
     assert_eq!(nbt, read)
 }
 
 #[test]
 fn deserialize_simple_player() {
     let mut file = File::open("tests/simple_player.dat").unwrap();
-    let _: PlayerData = from_gzip(&mut file).unwrap();
+    let _: PlayerData = from_gzip_reader(&mut file).unwrap();
 }
 
 #[test]
 fn deserialize_complex_player() {
     let mut file = File::open("tests/complex_player.dat").unwrap();
-    let _: PlayerData = from_gzip(&mut file).unwrap();
+    let _: PlayerData = from_gzip_reader(&mut file).unwrap();
 }
 
 #[test]
 fn deserialize_level() {
     let mut file = File::open("tests/level.dat").unwrap();
-    let _: Level = from_gzip(&mut file).unwrap();
+    let _: Level = from_gzip_reader(&mut file).unwrap();
 }

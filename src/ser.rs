@@ -4,6 +4,8 @@ use std::io;
 
 use serde;
 use serde::ser;
+use flate2::Compression;
+use flate2::write::{GzEncoder, ZlibEncoder};
 
 use raw;
 
@@ -18,6 +20,28 @@ pub fn to_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
           T: ?Sized + ser::Serialize,
 {
     let mut encoder = Encoder::new(dst, header);
+    value.serialize(&mut encoder)
+}
+
+/// Encode `value` in Named Binary Tag format to the given `io::Write`
+/// destination, with an optional header.
+pub fn to_gzip_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
+                           -> Result<()>
+    where W: ?Sized + io::Write,
+          T: ?Sized + ser::Serialize,
+{
+    let mut encoder = Encoder::new(GzEncoder::new(dst, Compression::Default), header);
+    value.serialize(&mut encoder)
+}
+
+/// Encode `value` in Named Binary Tag format to the given `io::Write`
+/// destination, with an optional header.
+pub fn to_zlib_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
+                           -> Result<()>
+    where W: ?Sized + io::Write,
+          T: ?Sized + ser::Serialize,
+{
+    let mut encoder = Encoder::new(ZlibEncoder::new(dst, Compression::Default), header);
     value.serialize(&mut encoder)
 }
 
