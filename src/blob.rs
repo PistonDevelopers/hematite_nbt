@@ -3,11 +3,13 @@ use std::fmt;
 use std::io;
 use std::ops::Index;
 
+use byteorder::WriteBytesExt;
 use flate2::Compression;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use flate2::write::{GzEncoder, ZlibEncoder};
 
 use error::{Error, Result};
+use raw;
 use value::Value;
 
 /// A generic, complete object in Named Binary Tag format.
@@ -24,44 +26,55 @@ use value::Value;
 /// use nbt::{Blob, Value};
 ///
 /// // Create a `Blob` from key/value pairs.
-/// let mut nbt = Blob::new("".to_string());
-/// nbt.insert("name".to_string(), "Herobrine").unwrap();
-/// nbt.insert("health".to_string(), 100i8).unwrap();
-/// nbt.insert("food".to_string(), 20.0f32).unwrap();
+/// let mut nbt = Blob::new();
+/// nbt.insert("name", "Herobrine").unwrap();
+/// nbt.insert("health", 100i8).unwrap();
+/// nbt.insert("food", 20.0f32).unwrap();
 ///
 /// // Write a compressed binary representation to a byte array.
 /// let mut dst = Vec::new();
-/// nbt.write_zlib(&mut dst).unwrap();
+/// nbt.to_zlib_writer(&mut dst).unwrap();
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Blob {
     title: String,
-    content: Value
+    content: HashMap<String, Value>
 }
 
 impl Blob {
+    /// Create a new NBT file format representation with an empty name.
+    pub fn new() -> Blob {
+        Blob { title: "".to_string(), content: HashMap::new() }
+    }
+
     /// Create a new NBT file format representation with the given name.
-    pub fn new(title: String) -> Blob {
-        let map: HashMap<String, Value> = HashMap::new();
-        Blob { title: title, content: Value::Compound(map) }
+    pub fn named<S>(name: S) -> Blob where S: Into<String> {
+        Blob { title: name.into(), content: HashMap::new() }
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
-    pub fn from_reader(src: &mut io::Read) -> Result<Blob> {
-        let header = try!(Value::read_header(src));
+    pub fn from_reader<R>(src: &mut R) -> Result<Blob>
+        where R: io::Read
+    {
+        let (tag, title) = try!(raw::emit_next_header(src));
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
         // have a top-level Compound.
-        if header.0 != 0x0a {
+        if tag != 0x0a {
             return Err(Error::NoRootCompound);
         }
-        let content = try!(Value::from_reader(header.0, src));
-        Ok(Blob { title: header.1, content: content })
+        let content = try!(Value::from_reader(tag, src));
+        match content {
+            Value::Compound(map) => Ok(Blob { title: title, content: map }),
+            _ => Err(Error::NoRootCompound),
+        }
     }
 
     /// Extracts an `Blob` object from an `io::Read` source that is
     /// compressed using the Gzip format.
-    pub fn from_gzip(src: &mut io::Read) -> Result<Blob> {
+    pub fn from_gzip_reader<R>(src: &mut R) -> Result<Blob>
+        where R: io::Read
+    {
         // Reads the gzip header, and fails if it is incorrect.
         let mut data = try!(GzDecoder::new(src));
         Blob::from_reader(&mut data)
@@ -69,27 +82,41 @@ impl Blob {
 
     /// Extracts an `Blob` object from an `io::Read` source that is
     /// compressed using the zlib format.
-    pub fn from_zlib(src: &mut io::Read) -> Result<Blob> {
+    pub fn from_zlib_reader<R>(src: &mut R) -> Result<Blob>
+        where R: io::Read
+    {
         Blob::from_reader(&mut ZlibDecoder::new(src))
     }
 
     /// Writes the binary representation of this `Blob` to an `io::Write`
     /// destination.
-    pub fn write(&self, dst: &mut io::Write) -> Result<()> {
-        try!(self.content.write_header(dst, &self.title));
-        self.content.write(dst)
+    pub fn to_writer<W>(&self, mut dst: &mut W) -> Result<()>
+        where W: io::Write
+    {
+        dst.write_u8(0x0a)?;
+        raw::write_bare_string(&mut dst, &self.title)?;
+        for (name, ref nbt) in self.content.iter() {
+            dst.write_u8(nbt.id())?;
+            raw::write_bare_string(&mut dst, name)?;
+            nbt.to_writer(&mut dst)?;
+        }
+        raw::close_nbt(&mut dst)
     }
 
     /// Writes the binary representation of this `Blob`, compressed using
     /// the Gzip format, to an `io::Write` destination.
-    pub fn write_gzip(&self, dst: &mut io::Write) -> Result<()> {
-        self.write(&mut GzEncoder::new(dst, Compression::Default))
+    pub fn to_gzip_writer<W>(&self, dst: &mut W) -> Result<()>
+        where W: io::Write
+    {
+        self.to_writer(&mut GzEncoder::new(dst, Compression::Default))
     }
 
     /// Writes the binary representation of this `Blob`, compressed using
     /// the Zlib format, to an `io::Write` dst.
-    pub fn write_zlib(&self, dst: &mut io::Write) -> Result<()> {
-        self.write(&mut ZlibEncoder::new(dst, Compression::Default))
+    pub fn to_zlib_writer<W>(&self, dst: &mut W) -> Result<()>
+        where W: io::Write
+    {
+        self.to_writer(&mut ZlibEncoder::new(dst, Compression::Default))
     }
 
     /// Insert an `Value` with a given name into this `Blob` object. This
@@ -99,11 +126,10 @@ impl Blob {
     /// This method will also return an error if a `Value::List` with
     /// heterogeneous elements is passed in, because this is illegal in the NBT
     /// file format.
-    pub fn insert<V>(&mut self, name: String, value: V) -> Result<()>
-           where V: Into<Value> {
+    pub fn insert<S, V>(&mut self, name: S, value: V) -> Result<()>
+           where S: Into<String>, V: Into<Value> {
         // The follow prevents `List`s with heterogeneous tags from being
-        // inserted into the file. It would be nicer to return an error, but
-        // this would depart from the `HashMap` API for `insert`.
+        // inserted into the file.
         let nvalue = value.into();
         if let Value::List(ref vals) = nvalue {
             if vals.len() != 0 {
@@ -115,18 +141,8 @@ impl Blob {
                 }
             }
         }
-        if let Value::Compound(ref mut v) = self.content {
-            v.insert(name, nvalue);
-        } else {
-            unreachable!();
-        }
+        self.content.insert(name.into(), nvalue);
         Ok(())
-    }
-
-    /// The uncompressed length of this `Blob`, in bytes.
-    pub fn len(&self) -> usize {
-        // tag + name + content
-        1 + 2 + self.title.len() + self.content.len()
     }
 }
 
@@ -134,15 +150,18 @@ impl<'a> Index<&'a str> for Blob {
     type Output = Value;
 
     fn index<'b>(&'b self, s: &'a str) -> &'b Value {
-        match self.content {
-            Value::Compound(ref v) => v.get(s).unwrap(),
-            _ => unreachable!()
-        }
+        self.content.get(s).unwrap()
     }
 }
 
 impl fmt::Display for Blob {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TAG_Compound(\"{}\"): {}", self.title, self.content)
+        write!(f, "TAG_Compound(\"{}\"): {} entry(ies)\n{{\n", self.title, self.content.len())?;
+        for (name, tag) in self.content.iter() {
+            write!(f, "  {}(\"{}\"): ", tag.tag_name(), name)?;
+            tag.print(f, 2)?;
+            write!(f, "\n")?;
+        }
+        write!(f, "}}")
     }
 }

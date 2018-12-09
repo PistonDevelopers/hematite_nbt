@@ -1,11 +1,4 @@
 //! Primitive functions for serializing and deserializing NBT data.
-//!
-//! This submodule is not intended for general use, but is exposed for those
-//! interested in writing fast NBT encoding/decoding by hand, where it may be
-//! quite useful.
-//!
-//! A high-level API for reading and writing generic NBT data is available in
-//! the [`Blob`](../struct.Blob.html) struct.
 
 use std::io;
 

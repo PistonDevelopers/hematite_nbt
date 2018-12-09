@@ -45,7 +45,7 @@ impl Value {
     }
 
     /// A string representation of this tag.
-    fn tag_name(&self) -> &str {
+    pub fn tag_name(&self) -> &str {
         match *self {
             Value::Byte(_)      => "TAG_Byte",
             Value::Short(_)     => "TAG_Short",
@@ -62,50 +62,19 @@ impl Value {
         }
     }
 
-    /// The length of the payload of this `Value`, in bytes.
-    pub fn len(&self) -> usize {
-        match *self {
-            Value::Byte(_)            => 1,
-            Value::Short(_)           => 2,
-            Value::Int(_)             => 4,
-            Value::Long(_)            => 8,
-            Value::Float(_)           => 4,
-            Value::Double(_)          => 8,
-            Value::ByteArray(ref val) => 4 + val.len(), // size + bytes
-            Value::String(ref val)    => 2 + val.len(), // size + bytes
-            Value::List(ref vals)     => {
-                // tag + size + payload for each element
-                5 + vals.iter().map(|x| x.len()).fold(0, |acc, item| acc + item)
-            },
-            Value::Compound(ref vals) => {
-                vals.iter().map(|(name, nbt)| {
-                    // tag + name + payload for each entry
-                    3 + name.len() + nbt.len()
-                }).fold(0, |acc, item| acc + item) + 1 // + u8 for the Tag_End
-            },
-            Value::IntArray(ref val)  => 4 + 4 * val.len(),
-            Value::LongArray(ref val) => 4 + 8 * val.len(),
-        }
-    }
-
-    /// Writes the header (that is, the value's type ID and optionally a title)
-    /// of this `Value` to an `io::Write` destination.
-    pub fn write_header(&self, mut dst: &mut io::Write, title: &str) -> Result<()> {
-        try!(dst.write_u8(self.id()));
-        raw::write_bare_string(&mut dst, title)
-    }
-
     /// Writes the payload of this `Value` to an `io::Write` destination.
-    pub fn write(&self, mut dst: &mut io::Write) -> Result<()> {
+    pub fn to_writer<W>(&self, mut dst: &mut W) -> Result<()>
+        where W: io::Write
+    {
         match *self {
-            Value::Byte(val)   => raw::write_bare_byte(&mut dst, val),
-            Value::Short(val)  => raw::write_bare_short(&mut dst, val),
-            Value::Int(val)    => raw::write_bare_int(&mut dst, val),
-            Value::Long(val)   => raw::write_bare_long(&mut dst, val),
-            Value::Float(val)  => raw::write_bare_float(&mut dst, val),
-            Value::Double(val) => raw::write_bare_double(&mut dst, val),
-            Value::ByteArray(ref vals) => raw::write_bare_byte_array(&mut dst, &vals[..]),
-            Value::String(ref val) => raw::write_bare_string(&mut dst, &val),
+            Value::Byte(val)   => raw::write_bare_byte(dst, val),
+            Value::Short(val)  => raw::write_bare_short(dst, val),
+            Value::Int(val)    => raw::write_bare_int(dst, val),
+            Value::Long(val)   => raw::write_bare_long(dst, val),
+            Value::Float(val)  => raw::write_bare_float(dst, val),
+            Value::Double(val) => raw::write_bare_double(dst, val),
+            Value::ByteArray(ref vals) => raw::write_bare_byte_array(dst, &vals[..]),
+            Value::String(ref val) => raw::write_bare_string(dst, &val),
             Value::List(ref vals) => {
                 // This is a bit of a trick: if the list is empty, don't bother
                 // checking its type.
@@ -122,7 +91,7 @@ impl Value {
                         if nbt.id() != first_id {
                             return Err(Error::HeterogeneousList);
                         }
-                        try!(nbt.write(dst));
+                        try!(nbt.to_writer(dst));
                     }
                 }
                 Ok(())
@@ -130,39 +99,31 @@ impl Value {
             Value::Compound(ref vals)  => {
                 for (name, ref nbt) in vals {
                     // Write the header for the tag.
-                    try!(nbt.write_header(dst, &name));
-                    try!(nbt.write(dst));
+                    dst.write_u8(nbt.id())?;
+                    raw::write_bare_string(dst, name)?;
+                    try!(nbt.to_writer(dst));
                 }
-
                 raw::close_nbt(&mut dst)
             },
-            Value::IntArray(ref vals) => raw::write_bare_int_array(&mut dst, &vals[..]),
-            Value::LongArray(ref vals) => raw::write_bare_long_array(&mut dst, &vals[..]),
+            Value::IntArray(ref vals) => raw::write_bare_int_array(dst, &vals[..]),
+            Value::LongArray(ref vals) => raw::write_bare_long_array(dst, &vals[..]),
         }
-    }
-
-    /// Reads any valid `Value` header (that is, a type ID and a title of
-    /// arbitrary UTF-8 bytes) from an `io::Read` source.
-    pub fn read_header(mut src: &mut io::Read) -> Result<(u8, String)> {
-        let id = try!(src.read_u8());
-        if id == 0x00 { return Ok((0x00, "".to_string())); }
-        // Extract the name.
-        let name = try!(raw::read_bare_string(&mut src));
-        Ok((id, name))
     }
 
     /// Reads the payload of an `Value` with a given type ID from an
     /// `io::Read` source.
-    pub fn from_reader(id: u8, mut src: &mut io::Read) -> Result<Value> {
+    pub fn from_reader<R>(id: u8, src: &mut R) -> Result<Value>
+        where R: io::Read
+    {
         match id {
-            0x01 => Ok(Value::Byte(raw::read_bare_byte(&mut src)?)),
-            0x02 => Ok(Value::Short(raw::read_bare_short(&mut src)?)),
-            0x03 => Ok(Value::Int(raw::read_bare_int(&mut src)?)),
-            0x04 => Ok(Value::Long(raw::read_bare_long(&mut src)?)),
-            0x05 => Ok(Value::Float(raw::read_bare_float(&mut src)?)),
-            0x06 => Ok(Value::Double(raw::read_bare_double(&mut src)?)),
-            0x07 => Ok(Value::ByteArray(raw::read_bare_byte_array(&mut src)?)),
-            0x08 => Ok(Value::String(raw::read_bare_string(&mut src)?)),
+            0x01 => Ok(Value::Byte(raw::read_bare_byte(src)?)),
+            0x02 => Ok(Value::Short(raw::read_bare_short(src)?)),
+            0x03 => Ok(Value::Int(raw::read_bare_int(src)?)),
+            0x04 => Ok(Value::Long(raw::read_bare_long(src)?)),
+            0x05 => Ok(Value::Float(raw::read_bare_float(src)?)),
+            0x06 => Ok(Value::Double(raw::read_bare_double(src)?)),
+            0x07 => Ok(Value::ByteArray(raw::read_bare_byte_array(src)?)),
+            0x08 => Ok(Value::String(raw::read_bare_string(src)?)),
             0x09 => { // List
                 let id = try!(src.read_u8());
                 let len = try!(src.read_i32::<BigEndian>()) as usize;
@@ -175,22 +136,20 @@ impl Value {
             0x0a => { // Compound
                 let mut buf = HashMap::new();
                 loop {
-                    let (id, name) = try!(Value::read_header(src));
+                    let (id, name) = try!(raw::emit_next_header(src));
                     if id == 0x00 { break; }
                     let tag = try!(Value::from_reader(id, src));
                     buf.insert(name, tag);
                 }
                 Ok(Value::Compound(buf))
             },
-            0x0b => Ok(Value::IntArray(raw::read_bare_int_array(&mut src)?)),
-            0x0c => Ok(Value::LongArray(raw::read_bare_long_array(&mut src)?)),
+            0x0b => Ok(Value::IntArray(raw::read_bare_int_array(src)?)),
+            0x0c => Ok(Value::LongArray(raw::read_bare_long_array(src)?)),
             e => Err(Error::InvalidTypeId(e))
         }
     }
-}
 
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    pub fn print(&self, f: &mut fmt::Formatter, offset: usize) -> fmt::Result {
         match *self {
             Value::Byte(v)   => write!(f, "{}", v),
             Value::Short(v)  => write!(f, "{}", v),
@@ -200,29 +159,39 @@ impl fmt::Display for Value {
             Value::Double(v) => write!(f, "{}", v),
             Value::ByteArray(ref v) => write!(f, "{:?}", v),
             Value::String(ref v) => write!(f, "{}", v),
+            Value::IntArray(ref v) => write!(f, "{:?}", v),
+            Value::LongArray(ref v) => write!(f, "{:?}", v),
             Value::List(ref v) => {
                 if v.len() == 0 {
                     write!(f, "zero entries")
                 } else {
-                    try!(write!(f, "{} entries of type {}\n{{\n", v.len(), v[0].tag_name()));
+                    write!(f, "{} entries of type {}\n{:>width$}\n", v.len(), v[0].tag_name(), "{", width = offset + 1)?;
                     for tag in v {
-                        try!(write!(f, "{}(None): {}\n", tag.tag_name(), tag));
+                        let new_offset = offset + 2;
+                        write!(f, "{:>width$}(None): ", tag.tag_name(), width = new_offset + tag.tag_name().len())?;
+                        tag.print(f, new_offset)?;
+                        write!(f, "\n")?;
                     }
-                    try!(write!(f, "}}"));
-                    Ok(())
+                    write!(f, "{:>width$}", "}", width = offset + 1)
                 }
             }
             Value::Compound(ref v) => {
-                try!(write!(f, "{} entry(ies)\n{{\n", v.len()));
+                write!(f, "{} entry(ies)\n{:>width$}\n", v.len(), "{", width = offset + 1)?;
                 for (name, tag) in v {
-                    try!(write!(f, "{}(\"{}\"): {}\n", tag.tag_name(), name, tag));
+                    let new_offset = offset + 2;
+                    write!(f, "{:>width$}({}): ", tag.tag_name(), name, width = new_offset + tag.tag_name().len())?;
+                    tag.print(f, new_offset)?;
+                    write!(f, "\n")?;
                 }
-                try!(write!(f, "}}"));
-                Ok(())
+                write!(f, "{:>width$}", "}", width = offset + 1)
             }
-            Value::IntArray(ref v) => write!(f, "{:?}", v),
-            Value::LongArray(ref v) => write!(f, "{:?}", v),
         }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.print(f, 0)
     }
 }
 

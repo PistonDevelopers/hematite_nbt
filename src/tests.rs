@@ -10,12 +10,12 @@ use value::Value;
 
 #[test]
 fn nbt_nonempty() {
-    let mut nbt = Blob::new("".to_string());
-    nbt.insert("name".to_string(),      "Herobrine").unwrap();
-    nbt.insert("health".to_string(),    100i8).unwrap();
-    nbt.insert("food".to_string(),      20.0f32).unwrap();
-    nbt.insert("emeralds".to_string(),  12345i16).unwrap();
-    nbt.insert("timestamp".to_string(), 1424778774i32).unwrap();
+    let mut nbt = Blob::new();
+    nbt.insert("name", "Herobrine").unwrap();
+    nbt.insert("health", 100i8).unwrap();
+    nbt.insert("food", 20.0f32).unwrap();
+    nbt.insert("emeralds", 12345i16).unwrap();
+    nbt.insert("timestamp", 1424778774i32).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -45,7 +45,9 @@ fn nbt_nonempty() {
     ];
 
     // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
+    let mut dst = Vec::new();
+    nbt.to_writer(&mut dst).unwrap();
+    assert_eq!(bytes.len(), dst.len());
 
     // We can only test if the decoded bytes match, since the HashMap does
     // not guarantee order (and so encoding is likely to be different, but
@@ -57,7 +59,7 @@ fn nbt_nonempty() {
 
 #[test]
 fn nbt_empty_nbtfile() {
-    let nbt = Blob::new("".to_string());
+    let nbt = Blob::new();
 
     let bytes = vec![
         0x0a,
@@ -65,12 +67,9 @@ fn nbt_empty_nbtfile() {
         0x00
     ];
 
-    // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
-
     // Test encoding.
     let mut dst = Vec::new();
-    nbt.write(&mut dst).unwrap();
+    nbt.to_writer(&mut dst).unwrap();
     assert_eq!(&dst, &bytes);
 
     // Test decoding.
@@ -83,8 +82,8 @@ fn nbt_empty_nbtfile() {
 fn nbt_nested_compound() {
     let mut inner = HashMap::new();
     inner.insert("test".to_string(), Value::Byte(123));
-    let mut nbt = Blob::new("".to_string());
-    nbt.insert("inner".to_string(), Value::Compound(inner)).unwrap();
+    let mut nbt = Blob::new();
+    nbt.insert("inner", Value::Compound(inner)).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -100,12 +99,9 @@ fn nbt_nested_compound() {
         0x00
     ];
 
-    // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
-
     // Test encoding.
     let mut dst = Vec::new();
-    nbt.write(&mut dst).unwrap();
+    nbt.to_writer(&mut dst).unwrap();
     assert_eq!(&dst, &bytes);
 
     // Test decoding.
@@ -116,8 +112,8 @@ fn nbt_nested_compound() {
 
 #[test]
 fn nbt_empty_list() {
-    let mut nbt = Blob::new("".to_string());
-    nbt.insert("list".to_string(), Value::List(Vec::new())).unwrap();
+    let mut nbt = Blob::new();
+    nbt.insert("list", Value::List(Vec::new())).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -130,12 +126,9 @@ fn nbt_empty_list() {
         0x00
     ];
 
-    // Test correct length.
-    assert_eq!(bytes.len(), nbt.len());
-
     // Test encoding.
     let mut dst = Vec::new();
-    nbt.write(&mut dst).unwrap();
+    nbt.to_writer(&mut dst).unwrap();
     assert_eq!(&dst, &bytes);
 
     // Test decoding.
@@ -186,12 +179,12 @@ fn nbt_invalid_id() {
 
 #[test]
 fn nbt_invalid_list() {
-    let mut nbt = Blob::new("".to_string());
+    let mut nbt = Blob::new();
     let mut badlist = Vec::new();
     badlist.push(Value::Byte(1));
     badlist.push(Value::Short(1));
     // Will fail to insert, because the List is heterogeneous.
-    assert_eq!(nbt.insert("list".to_string(), Value::List(badlist)),
+    assert_eq!(nbt.insert("list", Value::List(badlist)),
                Err(Error::HeterogeneousList));
 }
 
@@ -199,39 +192,41 @@ fn nbt_invalid_list() {
 fn nbt_bad_compression() {
     // These aren't in the zlib or gzip format, so they'll fail.
     let bytes = vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    assert!(Blob::from_gzip(&mut io::Cursor::new(&bytes[..])).is_err());
-    assert!(Blob::from_zlib(&mut io::Cursor::new(&bytes[..])).is_err());
+    assert!(Blob::from_gzip_reader(&mut io::Cursor::new(&bytes[..])).is_err());
+    assert!(Blob::from_zlib_reader(&mut io::Cursor::new(&bytes[..])).is_err());
 }
 
 #[test]
 fn nbt_compression() {
     // Create a non-trivial Blob.
-    let mut nbt = Blob::new("".to_string());
-    nbt.insert("name".to_string(), Value::String("Herobrine".to_string())).unwrap();
-    nbt.insert("health".to_string(), Value::Byte(100)).unwrap();
-    nbt.insert("food".to_string(), Value::Float(20.0)).unwrap();
-    nbt.insert("emeralds".to_string(), Value::Short(12345)).unwrap();
-    nbt.insert("timestamp".to_string(), Value::Int(1424778774)).unwrap();
+    let mut nbt = Blob::new();
+    nbt.insert("name", Value::String("Herobrine".to_string())).unwrap();
+    nbt.insert("health", Value::Byte(100)).unwrap();
+    nbt.insert("food", Value::Float(20.0)).unwrap();
+    nbt.insert("emeralds", Value::Short(12345)).unwrap();
+    nbt.insert("timestamp", Value::Int(1424778774)).unwrap();
 
     // Test zlib encoding/decoding.
     let mut zlib_dst = Vec::new();
-    nbt.write_zlib(&mut zlib_dst).unwrap();
-    let zlib_file = Blob::from_zlib(&mut io::Cursor::new(zlib_dst)).unwrap();
+    nbt.to_zlib_writer(&mut zlib_dst).unwrap();
+    let zlib_file = Blob::from_zlib_reader(&mut io::Cursor::new(zlib_dst)).unwrap();
     assert_eq!(&nbt, &zlib_file);
 
     // Test gzip encoding/decoding.
     let mut gzip_dst = Vec::new();
-    nbt.write_gzip(&mut gzip_dst).unwrap();
-    let gz_file = Blob::from_gzip(&mut io::Cursor::new(gzip_dst)).unwrap();
+    nbt.to_gzip_writer(&mut gzip_dst).unwrap();
+    let gz_file = Blob::from_gzip_reader(&mut io::Cursor::new(gzip_dst)).unwrap();
     assert_eq!(&nbt, &gz_file);
 }
 
 #[test]
 fn nbt_bigtest() {
     let mut bigtest_file = File::open("tests/big1.nbt").unwrap();
-    let bigtest = Blob::from_gzip(&mut bigtest_file).unwrap();
+    let bigtest = Blob::from_gzip_reader(&mut bigtest_file).unwrap();
     // This is a pretty indirect way of testing correctness.
-    assert_eq!(1544, bigtest.len());
+    let mut dst = Vec::new();
+    bigtest.to_writer(&mut dst).unwrap();
+    assert_eq!(1544, dst.len());
 }
 
 #[test]
