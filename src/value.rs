@@ -9,6 +9,9 @@ use raw;
 
 /// Values which can be represented in the Named Binary Tag format.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum Value {
     Byte(i8),
     Short(i16),

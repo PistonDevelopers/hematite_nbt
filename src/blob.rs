@@ -165,3 +165,33 @@ impl fmt::Display for Blob {
         write!(f, "}}")
     }
 }
+
+#[cfg(feature = "serde")]
+use serde::{self, ser::SerializeMap};
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Blob {
+    fn serialize<S>(&self, serializer: S) -> serde::export::Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        // No support for named Blobs.
+        let mut state = serializer.serialize_map(Some(self.content.len()))?;
+        for (k, v) in &self.content {
+            state.serialize_entry(&k, &v)?;
+        }
+        state.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Blob {
+    fn deserialize<D>(deserializer: D) -> serde::export::Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        // No support for named Blobs.
+        let map: HashMap<String, Value> = serde::de::Deserialize::deserialize(deserializer)?;
+        Ok(Blob { title: "".to_string(), content: map })
+    }
+}

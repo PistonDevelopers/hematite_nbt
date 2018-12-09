@@ -139,7 +139,7 @@ macro_rules! return_expr_for_serialized_types_helper {
     };
     ($expr:expr, struct) => {
         return_expr_for_serialized_types_method!{
-            $expr, serialize_struct(&'static str, u32),
+            $expr, serialize_struct(&'static str, usize),
             result: Self::SerializeStruct
         }
     };
@@ -164,5 +164,11 @@ macro_rules! return_expr_for_serialized_types_helper {
 macro_rules! return_expr_for_serialized_types {
     ($expr:expr; $($type:tt)*) => {
         $(return_expr_for_serialized_types_helper!{$expr, $type})*
+    };
+}
+
+macro_rules! unrepresentable {
+    ($($type:tt)*) => {
+        $(return_expr_for_serialized_types_helper!{Err(Error::UnrepresentableType("$type")), $type})*
     };
 }

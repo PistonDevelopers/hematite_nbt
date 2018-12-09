@@ -500,9 +500,12 @@ fn serialize_nested_newtype_struct() {
 }
 
 #[test]
-fn deserialize_hashmap() {
+fn serialize_hashmap() {
     let mut nbt = HashMap::new();
     nbt.insert("data".to_string(), 100i8);
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
