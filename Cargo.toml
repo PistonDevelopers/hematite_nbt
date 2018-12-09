@@ -5,7 +5,7 @@ documentation = "http://docs.piston.rs/hematite_nbt/nbt/"
 repository = "https://github.com/PistonDevelopers/hematite_nbt"
 readme = "README.md"
 license = "MIT"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
     "Fenhl <fenhl@fenhl.net>",
     "Carlos Cobo <toqueteos@gmail.com>",
