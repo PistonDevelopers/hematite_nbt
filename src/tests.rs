@@ -249,24 +249,6 @@ fn nbt_arrays() {
     }
 }
 
-//#[bench]
-//fn nbt_bench_bigwrite(b: &mut Bencher) {
-//    let mut file = File::open("tests/big1.nbt").unwrap();
-//    let nbt = Blob::from_gzip(&mut file).unwrap();
-//    b.iter(|| {
-//        nbt.write(&mut io::sink())
-//    });
-//}
-
-//#[bench]
-//fn nbt_bench_smallwrite(b: &mut Bencher) {
-//    let mut file = File::open("tests/small4.nbt").unwrap();
-//    let nbt = Blob::from_reader(&mut file).unwrap();
-//    b.iter(|| {
-//        nbt.write(&mut io::sink())
-//    });
-//}
-
 #[test]
 #[cfg(feature = "serde")]
 fn serde_blob() {
