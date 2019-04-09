@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use linked_hash_map::LinkedHashMap as HashMap;
 use std::fmt;
 use std::io;
 use std::ops::Index;
@@ -37,8 +37,8 @@ use value::Value;
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Blob {
-    title: String,
-    content: HashMap<String, Value>
+    pub title: String,
+    pub content: HashMap<String, Value>
 }
 
 impl Blob {

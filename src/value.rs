@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::fmt;
 use std::io;
 
 use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
+use linked_hash_map::LinkedHashMap as HashMap;
 
 use error::{Error, Result};
 use raw;

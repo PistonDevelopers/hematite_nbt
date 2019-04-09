@@ -2,6 +2,7 @@
 
 extern crate byteorder;
 extern crate flate2;
+extern crate linked_hash_map;
 
 /* Re-export the core API from submodules. */
 pub use blob::Blob;
