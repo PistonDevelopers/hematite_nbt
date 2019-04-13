@@ -82,7 +82,7 @@ impl Value {
                 // This is a bit of a trick: if the list is empty, don't bother
                 // checking its type.
                 if vals.len() == 0 {
-                    try!(dst.write_u8(1));
+                    try!(dst.write_u8(0));
                     try!(dst.write_i32::<BigEndian>(0));
                 } else {
                     // Otherwise, use the first element of the list.
