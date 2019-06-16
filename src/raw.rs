@@ -3,6 +3,7 @@
 use std::io;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use cesu8::{from_java_cesu8, to_java_cesu8};
 
 use error::{Error, Result};
 
@@ -95,8 +96,9 @@ pub fn write_bare_long_array<W>(dst: &mut W, value: &[i64]) -> Result<()>
 pub fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<()>
    where W: io::Write
 {    
-    try!(dst.write_u16::<BigEndian>(value.len() as u16));
-    dst.write_all(value.as_bytes()).map_err(From::from)
+    let encoded = to_java_cesu8(value);
+    try!(dst.write_u16::<BigEndian>(encoded.len() as u16));
+    dst.write_all(&encoded).map_err(From::from)
 }
 
 /// Extracts the next header (tag and name) from an NBT format source.
@@ -216,5 +218,6 @@ pub fn read_bare_string<R>(src: &mut R) -> Result<String>
         }
     }
 
-    String::from_utf8(bytes).map_err(From::from)
+    let decoded = from_java_cesu8(&bytes)?;
+    Ok(decoded.into_owned())
 }

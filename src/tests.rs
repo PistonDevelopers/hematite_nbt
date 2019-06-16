@@ -301,3 +301,31 @@ fn serde_blob() {
     // still correct).
     assert_eq!(&bytes.len(), &dst.len());
 }
+
+#[test]
+fn nbt_modified_utf8() {
+    let mut nbt = Blob::new();
+    // These strings are taken from the cesu8 documentation.
+    nbt.insert("\u{10401}", "\0\0").unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x08,
+                0x00, 0x06,
+                0xed, 0xa0, 0x81, 0xed, 0xb0, 0x81,
+                0x00, 0x04,
+                0xc0, 0x80, 0xc0, 0x80,
+        0x00
+    ];
+
+    // Test encoding.
+    let mut dst = Vec::new();
+    nbt.to_writer(&mut dst).unwrap();
+    assert_eq!(&dst, &bytes);
+
+    // Test decoding.
+    let mut src = io::Cursor::new(bytes);
+    let file = Blob::from_reader(&mut src).unwrap();
+    assert_eq!(&file, &nbt);
+}

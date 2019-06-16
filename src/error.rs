@@ -3,7 +3,6 @@ use std::fmt;
 use std::io;
 use std::io::ErrorKind::InvalidInput;
 use std::result::Result as StdResult;
-use std::string;
 
 #[cfg(feature = "serde")]
 use serde;
@@ -134,8 +133,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<string::FromUtf8Error> for Error {
-    fn from(_: string::FromUtf8Error) -> Error {
+impl From<cesu8::Cesu8DecodingError> for Error {
+    fn from(_: cesu8::Cesu8DecodingError) -> Error {
         Error::InvalidUtf8
     }
 }

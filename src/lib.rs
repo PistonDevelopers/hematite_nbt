@@ -1,6 +1,7 @@
 //! MC Named Binary Tag type.
 
 extern crate byteorder;
+extern crate cesu8;
 extern crate flate2;
 
 /* Re-export the core API from submodules. */
