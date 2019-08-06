@@ -187,6 +187,16 @@ impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
         Ok(SeqDecoder { outer: outer, tag: 0x03, length: length,
                         current: 0 })
     }
+
+    fn long_array(outer: &'a mut Decoder<R>) -> Result<Self> {
+        let length = raw::read_bare_int(&mut outer.reader)?;
+        Ok(SeqDecoder {
+            outer,
+            tag: 0x04,
+            length,
+            current: 0,
+        })
+    }
 }
 
 impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
@@ -239,6 +249,7 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
             0x09 => visitor.visit_seq(SeqDecoder::list(outer)?),
             0x0a => visitor.visit_map(MapDecoder::new(outer)),
             0x0b => visitor.visit_seq(SeqDecoder::int_array(outer)?),
+            0x0c => visitor.visit_seq(SeqDecoder::long_array(outer)?),
             t => Err(Error::InvalidTypeId(t)),
         }
     }
