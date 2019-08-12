@@ -358,7 +358,13 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         if let Some(l) = len {
             try!(self.write_header(0x09));
-            Ok(Compound { outer: self.outer, state: State::ListHead(l) })
+            if l == 0 {
+                raw::write_bare_byte(&mut self.outer.writer, 0x00)?;
+                raw::write_bare_int(&mut self.outer.writer, 0)?;
+                Ok(Compound { outer: self.outer, state: State::Bare })
+            } else {
+                Ok(Compound { outer: self.outer, state: State::ListHead(l) })
+            }
         } else {
             Err(Error::UnrepresentableType("unsized list"))
         }

@@ -237,6 +237,30 @@ fn serialize_basic_list() {
 }
 
 #[test]
+fn serialize_empty_list() {
+    let nbt = BasicListNbt { data: vec!() };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &nbt, None).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x09,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x00, // Empty list type.
+                0x00, 0x00, 0x00, 0x00, // Length.
+        0x00
+    ];
+
+    assert_eq!(bytes, dst);
+
+    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
+
+#[test]
 fn deserialize_byte_array() {
     let nbt = BasicListNbt { data: vec![1, 2, 3] };
 
