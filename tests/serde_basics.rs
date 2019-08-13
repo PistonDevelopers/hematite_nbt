@@ -260,6 +260,41 @@ fn serialize_empty_list() {
     assert_eq!(read, nbt)
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct NestedListNbt {
+    data: Vec<Vec<i16>>,
+}
+
+#[test]
+fn serialize_nested_list() {
+    let nbt = NestedListNbt { data: vec!(vec!(1, 2), vec!(3, 4)) };
+
+    let mut dst = Vec::new();
+    to_writer(&mut dst, &nbt, None).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x09,
+                0x00, 0x04,
+                0x64, 0x61, 0x74, 0x61,
+                0x09, // Also a list.
+                0x00, 0x00, 0x00, 0x02,
+                0x02, // First list has type short.
+                0x00, 0x00, 0x00, 0x02,
+                0x00, 0x01, 0x00, 0x02,
+                0x02, // Second list has type short.
+                0x00, 0x00, 0x00, 0x02,
+                0x00, 0x03, 0x00, 0x04,
+        0x00
+    ];
+
+    assert_eq!(bytes, dst);
+
+    let read: NestedListNbt = from_reader(&bytes[..]).unwrap();
+    assert_eq!(read, nbt)
+}
+
 #[test]
 fn deserialize_byte_array() {
     let nbt = BasicListNbt { data: vec![1, 2, 3] };

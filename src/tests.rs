@@ -138,6 +138,42 @@ fn nbt_empty_list() {
 }
 
 #[test]
+fn nbt_nested_list() {
+    let mut nbt = Blob::new();
+    let inner_one = Value::List(vec!(Value::Short(1), Value::Short(2)));
+    let inner_two = Value::List(vec!(Value::Float(0.25), Value::Float(0.75)));
+    nbt.insert("list", Value::List(vec!(inner_one, inner_two))).unwrap();
+
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x09,
+                0x00, 0x04,
+                0x6c, 0x69, 0x73, 0x74,
+                0x09, // Also a list.
+                0x00, 0x00, 0x00, 0x02,
+                0x02, // First list has type short.
+                0x00, 0x00, 0x00, 0x02,
+                0x00, 0x01, 0x00, 0x02,
+                0x05, // Second list has type float.
+                0x00, 0x00, 0x00, 0x02,
+                0x3e, 0x80, 0x00, 0x00,
+                0x3f, 0x40, 0x00, 0x00,
+        0x00
+    ];
+
+    // Test encoding.
+    let mut dst = Vec::new();
+    nbt.to_writer(&mut dst).unwrap();
+    assert_eq!(&dst, &bytes);
+
+    // Test decoding.
+    let mut src = io::Cursor::new(bytes);
+    let file = Blob::from_reader(&mut src).unwrap();
+    assert_eq!(&file, &nbt);
+}
+
+#[test]
 fn nbt_no_root() {
     let bytes = vec![0x00];
     // Will fail, because the root is not a compound.
