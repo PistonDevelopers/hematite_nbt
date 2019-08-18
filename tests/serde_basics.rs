@@ -7,7 +7,21 @@ extern crate nbt;
 use std::collections::HashMap;
 
 use nbt::de::from_reader;
-use nbt::ser::to_writer;
+
+/// Helper function that asserts data of type T can be serialized into and
+/// deserialized from `bytes`. `name` is an optional header for the top-level
+/// NBT compound.
+fn assert_roundtrip_eq<T>(nbt: T, bytes: &[u8], name: Option<&str>)
+where for <'de> T: serde::Serialize + serde::Deserialize<'de> + PartialEq + std::fmt::Debug
+{
+    let mut dst = Vec::with_capacity(bytes.len());
+
+    nbt::ser::to_writer(&mut dst, &nbt, name).expect("NBT serialization.");
+    assert_eq!(bytes, &dst[..]);
+
+    let read: T = nbt::de::from_reader(bytes).expect("NBT deserialization.");
+    assert_eq!(read, nbt);
+}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct ByteNbt {
@@ -36,9 +50,6 @@ fn roundtrip_primitives() {
         double: 20.0,
         string: "Herobrine".to_string(),
     };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, Some("data")).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -76,10 +87,7 @@ fn roundtrip_primitives() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: PrimitiveNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, Some("data"));
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -88,11 +96,8 @@ struct BasicListNbt {
 }
 
 #[test]
-fn serialize_basic_list() {
+fn roundtrip_basic_list() {
     let nbt = BasicListNbt { data: vec![1, 2, 3] };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -106,18 +111,12 @@ fn serialize_basic_list() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[test]
-fn serialize_empty_list() {
+fn roundtrip_empty_list() {
     let nbt = BasicListNbt { data: vec!() };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -130,10 +129,7 @@ fn serialize_empty_list() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -142,11 +138,8 @@ struct NestedListNbt {
 }
 
 #[test]
-fn serialize_nested_list() {
+fn roundtrip_nested_list() {
     let nbt = NestedListNbt { data: vec!(vec!(1, 2), vec!(3, 4)) };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -165,10 +158,7 @@ fn serialize_nested_list() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: NestedListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[test]
@@ -250,11 +240,8 @@ struct BoolNbt {
 }
 
 #[test]
-fn serialize_bool() {
+fn roundtrip_bool() {
     let nbt = BoolNbt { data: true };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -266,10 +253,7 @@ fn serialize_bool() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: BoolNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -278,11 +262,8 @@ struct OptionNbt {
 }
 
 #[test]
-fn serialize_some() {
+fn roundtrip_some() {
     let nbt = OptionNbt { data: Some(100) };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -294,18 +275,12 @@ fn serialize_some() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: OptionNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[test]
-fn serialize_none() {
+fn roundtrip_none() {
     let nbt = OptionNbt { data: None };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -314,21 +289,15 @@ fn serialize_none() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: OptionNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct UnitStructNbt;
 
 #[test]
-fn serialize_unit_struct() {
+fn roundtrip_unit_struct() {
     let nbt = UnitStructNbt;
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -336,21 +305,15 @@ fn serialize_unit_struct() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: UnitStructNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct NewByteNbt(ByteNbt);
 
 #[test]
-fn serialize_newtype_struct() {
+fn roundtrip_newtype_struct() {
     let nbt = NewByteNbt(ByteNbt { data: 100 });
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -362,10 +325,7 @@ fn serialize_newtype_struct() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: NewByteNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -374,11 +334,8 @@ struct NestedByteNbt {
 }
 
 #[test]
-fn serialize_nested() {
+fn roundtrip_nested() {
     let nbt = NestedByteNbt { data: ByteNbt { data: 100 } };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -394,10 +351,7 @@ fn serialize_nested() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: NestedByteNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -406,11 +360,8 @@ struct NestedUnitStructNbt {
 }
 
 #[test]
-fn serialize_nested_unit_struct() {
+fn roundtrip_nested_unit_struct() {
     let nbt = NestedUnitStructNbt { data: UnitStructNbt };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -423,10 +374,7 @@ fn serialize_nested_unit_struct() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: NestedUnitStructNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -435,11 +383,8 @@ struct NestedNewByteNbt {
 }
 
 #[test]
-fn serialize_nested_newtype_struct() {
+fn roundtrip_nested_newtype_struct() {
     let nbt = NestedNewByteNbt { data: NewByteNbt(ByteNbt { data: 100 }) };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -455,19 +400,13 @@ fn serialize_nested_newtype_struct() {
         0x00
     ];
 
-    assert_eq!(bytes, dst);
-
-    let read: NestedNewByteNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[test]
-fn serialize_hashmap() {
+fn roundtrip_hashmap() {
     let mut nbt = HashMap::new();
     nbt.insert("data".to_string(), 100i8);
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
 
     let bytes = vec![
         0x0a,
@@ -479,6 +418,5 @@ fn serialize_hashmap() {
         0x00
     ];
 
-    let read: HashMap<String,i8> = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
