@@ -89,6 +89,10 @@ impl StdError for Error {
         }
     }
 
+    // Deprecated in 1.33 in favour of source(), added in 1.30. This is recent
+    // enough that we should attempt to support older compilers, especially
+    // since we're on the 2015 edition at this time.
+    #[allow(deprecated)]
     fn cause(&self) -> Option<&StdError> {
         match *self {
             Error::IoError(ref e) => e.cause(),
