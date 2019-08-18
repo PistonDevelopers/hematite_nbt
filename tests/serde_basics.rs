@@ -14,187 +14,63 @@ struct ByteNbt {
     data: i8,
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct PrimitiveNbt {
+    byte: i8,
+    short: i16,
+    int: i32,
+    long: i64,
+    float: f32,
+    double: f64,
+    string: String,
+}
+
 #[test]
-fn serialize_byte() {
-    let nbt = ByteNbt { data: 100 };
+fn roundtrip_primitives() {
+    let nbt = PrimitiveNbt {
+        byte: 100,
+        short: 100,
+        int: 100,
+        long: 100,
+        float: 20.0,
+        double: 20.0,
+        string: "Herobrine".to_string(),
+    };
 
     let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
+    to_writer(&mut dst, &nbt, Some("data")).unwrap();
 
     let bytes = vec![
         0x0a,
-            0x00, 0x00,
+            0x00, 0x04, // Header: "data"
+            0x64, 0x61, 0x74, 0x61,
             0x01,
                 0x00, 0x04,
-                0x64, 0x61, 0x74, 0x61,
+                0x62, 0x79, 0x74, 0x65,
                 0x64,
-        0x00
-    ];
-
-    assert_eq!(bytes, dst);
-
-    let read: ByteNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct ShortNbt {
-    data: i16,
-}
-
-#[test]
-fn serialize_short() {
-    let nbt = ShortNbt { data: 12345 };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
-
-    let bytes = vec![
-        0x0a,
-            0x00, 0x00,
             0x02,
-                0x00, 0x04,
-                0x64, 0x61, 0x74, 0x61,
-                0x30, 0x39,
-        0x00
-    ];
-
-    assert_eq!(bytes, dst);
-
-    let read: ShortNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct IntNbt {
-    data: i32,
-}
-
-#[test]
-fn serialize_int() {
-    let nbt = IntNbt { data: 100 };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
-
-    let bytes = vec![
-        0x0a,
-            0x00, 0x00,
+                0x00, 0x05,
+                0x73, 0x68, 0x6f, 0x72, 0x74,
+                0x00, 0x64,
             0x03,
-                0x00, 0x04,
-                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x03,
+                0x69, 0x6e, 0x74,
                 0x00, 0x00, 0x00, 0x64,
-        0x00
-    ];
-
-    assert_eq!(bytes, dst);
-
-    let read: IntNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct LongNbt {
-    data: i64,
-}
-
-#[test]
-fn serialize_long() {
-    let nbt = LongNbt { data: 100 };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
-
-    let bytes = vec![
-        0x0a,
-            0x00, 0x00,
             0x04,
                 0x00, 0x04,
-                0x64, 0x61, 0x74, 0x61,
+                0x6c, 0x6f, 0x6e, 0x67,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64,
-        0x00
-    ];
-
-    assert_eq!(bytes, dst);
-
-    let read: LongNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct FloatNbt {
-    data: f32,
-}
-
-#[test]
-fn serialize_float() {
-    let nbt = FloatNbt { data: 20.0 };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
-
-    let bytes = vec![
-        0x0a,
-            0x00, 0x00,
             0x05,
-                0x00, 0x04,
-                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x05,
+                0x66, 0x6c, 0x6f, 0x61, 0x74,
                 0x41, 0xa0, 0x00, 0x00,
-        0x00
-    ];
-
-    assert_eq!(bytes, dst);
-
-    let read: FloatNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct DoubleNbt {
-    data: f64,
-}
-
-#[test]
-fn serialize_double() {
-    let nbt = DoubleNbt { data: 20.0 };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
-
-    let bytes = vec![
-        0x0a,
-            0x00, 0x00,
             0x06,
-                0x00, 0x04,
-                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x06,
+                0x64, 0x6f, 0x75, 0x62, 0x6c, 0x65,
                 0x40, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00
-    ];
-
-    assert_eq!(bytes, dst);
-
-    let read: DoubleNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct StringNbt {
-    data: String,
-}
-
-#[test]
-fn serialize_string() {
-    let nbt = StringNbt { data: "Herobrine".to_string() };
-
-    let mut dst = Vec::new();
-    to_writer(&mut dst, &nbt, None).unwrap();
-
-    let bytes = vec![
-        0x0a,
-            0x00, 0x00,
             0x08,
-                0x00, 0x04,
-                0x64, 0x61, 0x74, 0x61,
+                0x00, 0x06,
+                0x73, 0x74, 0x72, 0x69, 0x6e, 0x67,
                 0x00, 0x09,
                 0x48, 0x65, 0x72, 0x6f, 0x62, 0x72, 0x69, 0x6e, 0x65,
         0x00
@@ -202,7 +78,7 @@ fn serialize_string() {
 
     assert_eq!(bytes, dst);
 
-    let read: StringNbt = from_reader(&bytes[..]).unwrap();
+    let read: PrimitiveNbt = from_reader(&bytes[..]).unwrap();
     assert_eq!(read, nbt)
 }
 
