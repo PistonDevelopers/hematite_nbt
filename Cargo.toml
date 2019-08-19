@@ -6,7 +6,7 @@ repository = "https://github.com/PistonDevelopers/hematite_nbt"
 readme = "README.md"
 license = "MIT"
 keywords = ["nbt", "minecraft", "serde", "serialization"]
-version = "0.4.0"
+version = "0.4.1"
 authors = [
     "Aaron Jacobs <atheriel@gmail.com>",
     "Fenhl <fenhl@fenhl.net>",
