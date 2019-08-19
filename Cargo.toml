@@ -1,15 +1,16 @@
 [package]
 name = "hematite-nbt"
-description = "A library for working with Minecraft's Named Binary Tag (NBT) file format"
-documentation = "http://docs.piston.rs/hematite_nbt/nbt/"
+description = "A full-featured library for working with Minecraft's Named Binary Tag (NBT) file format, including Serde support."
+documentation = "https://docs.rs/hematite-nbt/"
 repository = "https://github.com/PistonDevelopers/hematite_nbt"
 readme = "README.md"
 license = "MIT"
+keywords = ["nbt", "minecraft", "serde", "serialization"]
 version = "0.4.0"
 authors = [
+    "Aaron Jacobs <atheriel@gmail.com>",
     "Fenhl <fenhl@fenhl.net>",
-    "Carlos Cobo <toqueteos@gmail.com>",
-    "Aaron Jacobs <atheriel@gmail.com>"
+    "Carlos Cobo <toqueteos@gmail.com>"
 ]
 
 [features]
