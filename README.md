@@ -1,4 +1,4 @@
-# hematite_nbt [![hematite_nbt at crates.io](https://img.shields.io/crates/v/hematite_nbt.svg)](https://crates.io/crates/hematite_nbt) [![hematite_nbt at docs.rs](https://docs.rs/hematite_nbt/badge.svg)](https://docs.rs/hematite_nbt) [![Build Status](https://travis-ci.org/PistonDevelopers/hematite_nbt.svg?branch=master)](https://travis-ci.org/PistonDevelopers/hematite_nbt)
+# hematite_nbt [![hematite_nbt at crates.io](https://img.shields.io/crates/v/hematite_nbt.svg)](https://crates.io/crates/hematite_nbt) [![hematite_nbt at docs.rs](https://docs.rs/hematite-nbt/badge.svg)](https://docs.rs/hematite-nbt) [![Build Status](https://travis-ci.org/PistonDevelopers/hematite_nbt.svg?branch=master)](https://travis-ci.org/PistonDevelopers/hematite_nbt)
 
 This repository contains the [Hematite project](http://hematite.piston.rs/)'s
 standalone `nbt` crate for working with Minecraft's [Named Binary Tag](https://minecraft.gamepedia.com/NBT_format)
