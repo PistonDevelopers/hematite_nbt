@@ -15,3 +15,35 @@
 * Fixes Serde-based serialization of empty lists.
 
 * Updates the project `README` and adds a `NEWS` file.
+
+# hematite_nbt 0.4.0
+
+## Breaking Changes
+
+* `Blob::new()` no longer takes a name parameter; use `Blob::named()` instead.
+  (#36)
+
+* Implementation details on `Blob` and `Value` including `read_header()`,
+  `write_header()`, and `len()` are no longer public or have been removed. (#36)
+
+* `Value::write()` is now `Value::to_writer()`, matching the rest of the API.
+  Similarly, `Blob::(to|from)_(gzip|zlib)` methods now include a
+  `(reader|writer)` prefix. (#36)
+
+* The unfinished `macros` module and the associated `NbtFmt` trait have been
+  removed. These are superceded by Serde support. (#25)
+
+## New Features
+
+* Support for (de)serializing Rust types (including `Blob`) to NBT using the
+  Serde framework. This is an optional feature but enabled by default. (#24,
+  #30, #31)
+
+* Support for `TAG_LongArray` via `Value::LongArray`. (#28 by @williewillus)
+
+* Improved printing support for `Blob` and `Value` and added an example program
+  for printing out NBT files.
+
+# hematite_nbt 0.3.0
+
+* Bumps the `byteorder` dependency to 1.0.0 and makes associated changes.
