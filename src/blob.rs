@@ -144,6 +144,13 @@ impl Blob {
         self.content.insert(name.into(), nvalue);
         Ok(())
     }
+
+    /// Tries to get a named `Value` in the blob.
+    pub fn get<S>(&self, name: S) -> Option<&Value> 
+        where S: Into<&'static str>
+    {
+        self.content.get(name.into())
+    }
 }
 
 impl<'a> Index<&'a str> for Blob {
