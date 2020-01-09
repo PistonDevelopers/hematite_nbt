@@ -25,7 +25,7 @@ pub enum Error {
     Serde(String),
     /// An error for when an unknown type ID is encountered in decoding NBT
     /// binary representations. Includes the ID in question.
-    InvalidTypeId(u8),
+    InvalidTypeId(i8),
     /// An error emitted when trying to create `NbtBlob`s with incorrect lists.
     HeterogeneousList,
     /// An error for when NBT binary representations do not begin with an
@@ -39,7 +39,7 @@ pub enum Error {
     IncompleteNbtValue,
     /// An error encountered when parsing NBT binary representations, where
     /// deserialization encounters a different tag than expected.
-    TagMismatch(u8, u8),
+    TagMismatch(i8, i8),
     /// An error encountered when parsing NBT binary representations, where
     /// deserialization encounters a field name it is not expecting.
     UnexpectedField(String),
@@ -93,7 +93,7 @@ impl StdError for Error {
     // enough that we should attempt to support older compilers, especially
     // since we're on the 2015 edition at this time.
     #[allow(deprecated)]
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         match *self {
             Error::IoError(ref e) => e.cause(),
             _ => None

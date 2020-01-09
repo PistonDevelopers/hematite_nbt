@@ -7,6 +7,7 @@ extern crate nbt;
 use std::collections::HashMap;
 
 use nbt::de::from_reader;
+use nbt::Endianness;
 
 /// Helper function that asserts data of type T can be serialized into and
 /// deserialized from `bytes`. `name` is an optional header for the top-level
@@ -16,10 +17,10 @@ where for <'de> T: serde::Serialize + serde::Deserialize<'de> + PartialEq + std:
 {
     let mut dst = Vec::with_capacity(bytes.len());
 
-    nbt::ser::to_writer(&mut dst, &nbt, name).expect("NBT serialization.");
+    nbt::ser::to_writer(&mut dst, &nbt, name, Endianness::BigEndian).expect("NBT serialization.");
     assert_eq!(bytes, &dst[..]);
 
-    let read: T = nbt::de::from_reader(bytes).expect("NBT deserialization.");
+    let read: T = nbt::de::from_reader(bytes, Endianness::BigEndian).expect("NBT deserialization.");
     assert_eq!(read, nbt);
 }
 
@@ -191,7 +192,7 @@ fn deserialize_nested_array() {
         0x00
     ];
 
-    let read: NestedArrayNbt = from_reader(&bytes[..]).unwrap();
+    let read: NestedArrayNbt = from_reader(&bytes[..], Endianness::BigEndian).unwrap();
     assert_eq!(read, nbt)
 }
 
@@ -210,7 +211,7 @@ fn deserialize_byte_array() {
         0x00
     ];
 
-    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
+    let read: BasicListNbt = from_reader(&bytes[..], Endianness::BigEndian).unwrap();
     assert_eq!(read, nbt)
 }
 
@@ -233,7 +234,7 @@ fn deserialize_empty_array() {
         0x00
     ];
 
-    let read: IntListNbt = from_reader(&bytes[..]).unwrap();
+    let read: IntListNbt = from_reader(&bytes[..], Endianness::BigEndian).unwrap();
     assert_eq!(read, nbt)
 }
 
@@ -255,7 +256,7 @@ fn deserialize_int_array() {
         0x00
     ];
 
-    let read: IntListNbt = from_reader(&bytes[..]).unwrap();
+    let read: IntListNbt = from_reader(&bytes[..], Endianness::BigEndian).unwrap();
     assert_eq!(read, nbt)
 }
 
@@ -282,7 +283,7 @@ fn deserialize_long_array() {
         0x00
     ];
 
-    let read: LongListNbt = from_reader(&bytes[..]).unwrap();
+    let read: LongListNbt = from_reader(&bytes[..], Endianness::BigEndian).unwrap();
     assert_eq!(read, nbt)
 }
 

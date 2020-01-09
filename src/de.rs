@@ -5,7 +5,7 @@ use std::io;
 use serde::de;
 use flate2::read;
 
-use raw;
+use raw::{RawReader, Endianness};
 
 use error::{Error, Result};
 
@@ -13,11 +13,11 @@ use error::{Error, Result};
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_reader<R, T>(src: R) -> Result<T>
+pub fn from_reader<R, T>(src: R, endian: Endianness) -> Result<T>
     where R: io::Read,
           T: de::DeserializeOwned,
 {
-    let mut decoder = Decoder::new(src);
+    let mut decoder = Decoder::new(src, endian);
     de::Deserialize::deserialize(&mut decoder)
 }
 
@@ -25,39 +25,39 @@ pub fn from_reader<R, T>(src: R) -> Result<T>
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_gzip_reader<R, T>(src: R) -> Result<T>
+pub fn from_gzip_reader<R, T>(src: R, endian: Endianness) -> Result<T>
     where R: io::Read,
           T: de::DeserializeOwned,
 {
-    let gzip = try!(read::GzDecoder::new(src));
-    from_reader(gzip)
+    let gzip = read::GzDecoder::new(src)?;
+    from_reader(gzip, endian)
 }
 
 /// Decode an object from Named Binary Tag (NBT) format.
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub fn from_zlib_reader<R, T>(src: R) -> Result<T>
+pub fn from_zlib_reader<R, T>(src: R, endian: Endianness) -> Result<T>
     where R: io::Read,
           T: de::DeserializeOwned,
 {
     let zlib = read::ZlibDecoder::new(src);
-    from_reader(zlib)
+    from_reader(zlib, endian)
 }
 
 /// Decode objects from Named Binary Tag (NBT) format.
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
-pub struct Decoder<R> {
-    reader: R,
+pub struct Decoder<R: io::Read> {
+    reader: RawReader<R>,
 }
 
 impl<R> Decoder<R> where R: io::Read {
 
     /// Create an NBT Decoder from a given `io::Read` source.
-    pub fn new(src: R) -> Self {
-        Decoder { reader: src }
+    pub fn new(src: R, endian: Endianness) -> Self {
+        Decoder { reader: RawReader::new(src, endian) }
     }
 }
 
@@ -99,7 +99,7 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
         where V: de::Visitor<'de>
     {
         // Ignore the header (if there is one).
-        let (tag, _) = try!(raw::emit_next_header(&mut self.reader));
+        let (tag, _) = self.reader.emit_next_header()?;
 
         match tag {
             0x0a => visitor.visit_map(MapDecoder::new(self)),
@@ -116,7 +116,7 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
 /// Decoder for map-like types.
 struct MapDecoder<'a, R: io::Read + 'a> {
     outer: &'a mut Decoder<R>,
-    tag: Option<u8>,
+    tag: Option<i8>,
 }
 
 impl<'a, R> MapDecoder<'a, R> where R: io::Read {
@@ -132,7 +132,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
         where K: de::DeserializeSeed<'de>
     {
-        let tag = try!(raw::read_bare_byte(&mut self.outer.reader));
+        let tag = self.outer.reader.read_bare_byte()?;
 
         // NBT indicates the end of a compound type with a 0x00 tag.
         if tag == 0x00 {
@@ -140,7 +140,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
         }
 
         // Keep track of the tag so that we can decode the field correctly.
-        self.tag = Some(tag as u8);
+        self.tag = Some(tag);
 
         // TODO: Enforce that keys must be String. This is a bit of a hack.
         let mut de = InnerDecoder { outer: self.outer, tag: 0x08 };
@@ -162,7 +162,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
 /// Decoder for list-like types.
 struct SeqDecoder<'a, R: io::Read + 'a> {
     outer: &'a mut Decoder<R>,
-    tag: u8,
+    tag: i8,
     length: i32,
     current: i32,
 }
@@ -170,26 +170,26 @@ struct SeqDecoder<'a, R: io::Read + 'a> {
 impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
 
     fn list(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let tag = try!(raw::read_bare_byte(&mut outer.reader));
-        let length = try!(raw::read_bare_int(&mut outer.reader));
-        Ok(SeqDecoder { outer: outer, tag: tag as u8, length: length,
+        let tag = outer.reader.read_bare_byte()?;
+        let length = outer.reader.read_bare_int()?;
+        Ok(SeqDecoder { outer: outer, tag: tag, length: length,
                         current: 0 })
     }
 
     fn byte_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = try!(raw::read_bare_int(&mut outer.reader));
+        let length = outer.reader.read_bare_int()?;
         Ok(SeqDecoder { outer: outer, tag: 0x01, length: length,
                         current: 0 })
     }
 
     fn int_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = try!(raw::read_bare_int(&mut outer.reader));
+        let length = outer.reader.read_bare_int()?;
         Ok(SeqDecoder { outer: outer, tag: 0x03, length: length,
                         current: 0 })
     }
 
     fn long_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = raw::read_bare_int(&mut outer.reader)?;
+        let length = outer.reader.read_bare_int()?;
         Ok(SeqDecoder {
             outer,
             tag: 0x04,
@@ -210,7 +210,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
         }
 
         let mut de = InnerDecoder { outer: self.outer, tag: self.tag };
-        let value = try!(seed.deserialize(&mut de));
+        let value = seed.deserialize(&mut de)?;
 
         self.current += 1;
 
@@ -226,7 +226,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
 /// Private inner decoder, for decoding raw (i.e. non-Compound) types.
 struct InnerDecoder<'a, R: io::Read + 'a> {
     outer: &'a mut Decoder<R>,
-    tag: u8,
+    tag: i8,
 }
 
 impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecoder<'a, R> {
@@ -238,14 +238,14 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
         let ref mut outer = self.outer;
 
         match self.tag {
-            0x01 => visitor.visit_i8(raw::read_bare_byte(&mut outer.reader)?),
-            0x02 => visitor.visit_i16(raw::read_bare_short(&mut outer.reader)?),
-            0x03 => visitor.visit_i32(raw::read_bare_int(&mut outer.reader)?),
-            0x04 => visitor.visit_i64(raw::read_bare_long(&mut outer.reader)?),
-            0x05 => visitor.visit_f32(raw::read_bare_float(&mut outer.reader)?),
-            0x06 => visitor.visit_f64(raw::read_bare_double(&mut outer.reader)?),
+            0x01 => visitor.visit_i8(outer.reader.read_bare_byte()?),
+            0x02 => visitor.visit_i16(outer.reader.read_bare_short()?),
+            0x03 => visitor.visit_i32(outer.reader.read_bare_int()?),
+            0x04 => visitor.visit_i64(outer.reader.read_bare_long()?),
+            0x05 => visitor.visit_f32(outer.reader.read_bare_float()?),
+            0x06 => visitor.visit_f64(outer.reader.read_bare_double()?),
             0x07 => visitor.visit_seq(SeqDecoder::byte_array(outer)?),
-            0x08 => visitor.visit_string(raw::read_bare_string(&mut outer.reader)?),
+            0x08 => visitor.visit_string(outer.reader.read_bare_string()?),
             0x09 => visitor.visit_seq(SeqDecoder::list(outer)?),
             0x0a => visitor.visit_map(MapDecoder::new(outer)),
             0x0b => visitor.visit_seq(SeqDecoder::int_array(outer)?),
@@ -261,7 +261,7 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
         match self.tag {
             0x01 => {
                 let ref mut reader = self.outer.reader;
-                let value = try!(raw::read_bare_byte(reader));
+                let value = reader.read_bare_byte()?;
                 match value {
                     0 => visitor.visit_bool(false),
                     1 => visitor.visit_bool(true),

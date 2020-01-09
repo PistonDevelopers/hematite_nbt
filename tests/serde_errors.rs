@@ -7,13 +7,14 @@ extern crate nbt;
 use nbt::de::from_reader;
 use nbt::ser::to_writer;
 use nbt::{Error, Result};
+use nbt::Endianness;
 
 #[test]
 fn no_root_compound() {
     let nbt: i8 = 100;
 
     let mut dst = Vec::new();
-    let write = to_writer(&mut dst, &nbt, None);
+    let write = to_writer(&mut dst, &nbt, None, Endianness::BigEndian);
 
     assert!(write.is_err());
     match write.unwrap_err() {
@@ -38,7 +39,7 @@ fn incomplete_nbt() {
                 0x01
     ];
 
-    let read: Result<ByteNbt> = from_reader(&bytes[..]);
+    let read: Result<ByteNbt> = from_reader(&bytes[..], Endianness::BigEndian);
 
     assert!(read.is_err());
     match read.unwrap_err() {
@@ -59,7 +60,7 @@ fn unknown_tag() {
         0x00
     ];
 
-    let read: Result<ByteNbt> = from_reader(&bytes[..]);
+    let read: Result<ByteNbt> = from_reader(&bytes[..], Endianness::BigEndian);
 
     assert!(read.is_err());
     match read.unwrap_err() {
@@ -80,7 +81,7 @@ fn deserialized_wrong_type() {
         0x00
     ];
 
-    let read: Result<ByteNbt> = from_reader(&bytes[..]);
+    let read: Result<ByteNbt> = from_reader(&bytes[..], Endianness::BigEndian);
 
     assert!(read.is_err());
     match read.unwrap_err() {
@@ -107,7 +108,7 @@ fn non_boolean_byte() {
         0x00
     ];
 
-    let read: Result<BoolNbt> = from_reader(&bytes[..]);
+    let read: Result<BoolNbt> = from_reader(&bytes[..], Endianness::BigEndian);
 
     assert!(read.is_err());
     match read.unwrap_err() {

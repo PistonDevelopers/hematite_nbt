@@ -15,8 +15,9 @@ use std::io::{self, Read};
 
 use test::Bencher;
 
-use nbt::de::from_gzip;
+use nbt::de::from_gzip_reader;
 use nbt::ser::to_writer;
+use nbt::Endianness;
 
 mod data {
     include!("../tests/data.rs.in");
@@ -29,7 +30,7 @@ fn deserialize_big1_as_struct(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::Big1 = from_gzip(&mut src).unwrap();
+        let _: data::Big1 = from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
@@ -40,25 +41,25 @@ fn deserialize_big1_as_blob(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
+        nbt::Blob::from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
 #[bench]
 fn serialize_big1_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/big1.nbt").unwrap();
-    let nbt: data::Big1 = from_gzip(&mut file).unwrap();
+    let nbt: data::Big1 = from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
+        to_writer(&mut io::sink(), &nbt, None, Endianness::BigEndian)
     });
 }
 
 #[bench]
 fn serialize_big1_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/big1.nbt").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
+    let nbt = nbt::Blob::from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        nbt.write(&mut io::sink())
+        nbt.to_writer(&mut io::sink(), Endianness::BigEndian)
     });
 }
 #[bench]
@@ -68,7 +69,7 @@ fn deserialize_simple_player_as_struct(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::PlayerData = from_gzip(&mut src).unwrap();
+        let _: data::PlayerData = from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
@@ -79,25 +80,25 @@ fn deserialize_simple_player_as_blob(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
+        nbt::Blob::from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
 #[bench]
 fn serialize_simple_player_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/simple_player.dat").unwrap();
-    let nbt: data::PlayerData = from_gzip(&mut file).unwrap();
+    let nbt: data::PlayerData = from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
+        to_writer(&mut io::sink(), &nbt, None, Endianness::BigEndian)
     });
 }
 
 #[bench]
 fn serialize_simple_player_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/simple_player.dat").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
+    let nbt = nbt::Blob::from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        nbt.write(&mut io::sink())
+        nbt.to_writer(&mut io::sink(), Endianness::BigEndian)
     });
 }
 
@@ -108,7 +109,7 @@ fn deserialize_complex_player_as_struct(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::PlayerData = from_gzip(&mut src).unwrap();
+        let _: data::PlayerData = from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
@@ -119,25 +120,25 @@ fn deserialize_complex_player_as_blob(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
+        nbt::Blob::from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
 #[bench]
 fn serialize_complex_player_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/complex_player.dat").unwrap();
-    let nbt: data::PlayerData = from_gzip(&mut file).unwrap();
+    let nbt: data::PlayerData = from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
+        to_writer(&mut io::sink(), &nbt, None, Endianness::BigEndian)
     });
 }
 
 #[bench]
 fn serialize_complex_player_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/complex_player.dat").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
+    let nbt = nbt::Blob::from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        nbt.write(&mut io::sink())
+        nbt.to_writer(&mut io::sink(), Endianness::BigEndian)
     });
 }
 
@@ -148,7 +149,7 @@ fn deserialize_level_as_struct(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::Level = from_gzip(&mut src).unwrap();
+        let _: data::Level = from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
@@ -159,24 +160,24 @@ fn deserialize_level_as_blob(b: &mut Bencher) {
     file.read_to_end(&mut contents).unwrap();
     b.iter(|| {
         let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
+        nbt::Blob::from_gzip_reader(&mut src, Endianness::BigEndian).unwrap();
     });
 }
 
 #[bench]
 fn serialize_level_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/level.dat").unwrap();
-    let nbt: data::Level = from_gzip(&mut file).unwrap();
+    let nbt: data::Level = from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
+        to_writer(&mut io::sink(), &nbt, None, Endianness::BigEndian)
     });
 }
 
 #[bench]
 fn serialize_level_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/level.dat").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
+    let nbt = nbt::Blob::from_gzip_reader(&mut file, Endianness::BigEndian).unwrap();
     b.iter(|| {
-        nbt.write(&mut io::sink())
+        nbt.to_writer(&mut io::sink(), Endianness::BigEndian)
     });
 }
