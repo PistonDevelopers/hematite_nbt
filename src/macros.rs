@@ -169,6 +169,6 @@ macro_rules! return_expr_for_serialized_types {
 
 macro_rules! unrepresentable {
     ($($type:tt)*) => {
-        $(return_expr_for_serialized_types_helper!{Err(Error::UnrepresentableType("$type")), $type})*
+        $(return_expr_for_serialized_types_helper!{Err(Error::UnrepresentableType(stringify!($type))), $type})*
     };
 }
