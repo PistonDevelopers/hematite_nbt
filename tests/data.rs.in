@@ -67,7 +67,7 @@ pub struct Big1 {
     #[serde(rename = "longTest")] long_test: i64,
     #[serde(rename = "shortTest")] short_test: i32,
     #[serde(rename = "byteTest")] byte_test: i8,
-    #[serde(rename = "floatTest")] float_test: i64,
+    #[serde(rename = "floatTest")] float_test: f32,
     #[serde(rename = "nested compound test")] nested_compound_test: Big1Sub3,
     #[serde(rename = "byteArrayTest (the first 1000 values of (n*n*255+n*7)%100, starting with n=0 (0, 62, 34, 16, 8, ...))")]
     byte_array_test: Vec<i8>, // [i8; 1000] does not implement PartialEq.

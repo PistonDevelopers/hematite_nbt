@@ -8,6 +8,7 @@ extern crate flate2;
 pub use blob::Blob;
 pub use error::{Error, Result};
 pub use value::Value;
+pub use raw::Endianness;
 
 #[cfg(feature = "serde")]
 #[doc(inline)]
