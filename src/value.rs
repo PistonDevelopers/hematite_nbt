@@ -190,6 +190,42 @@ impl Value {
             }
         }
     }
+
+    /// The number of bytes this value serializes to, before compression
+    pub fn serialized_size(&self) -> usize {
+        1 /* type ID */ + self.uncompressed_size_of_payload()
+    }
+
+    /// Serialized size of an entry within a TAG_COMPOUND
+    /// Also used by Blob, so crate visible
+    pub(crate) fn size_of_compound_entry((key, value): (&String, &Value)) -> usize {
+        let key_len = 2 + key.len();
+        let value_len = value.serialized_size();
+        key_len + value_len
+    }
+
+    // The serialized size of the payload specifically, without tag IDs or names prepended.
+    fn uncompressed_size_of_payload(&self) -> usize {
+        use std::mem::size_of;
+        match self {
+            Value::Byte(_)   => 1,
+            Value::Short(_)  => 2,
+            Value::Int(_)    => 4,
+            Value::Long(_)   => 8,
+            Value::Float(_)  => 4,
+            Value::Double(_) => 8,
+            Value::String(s) => 2 /* string size */ + s.len(),
+            Value::List(v) => {
+                1 /* item tag */ + 4 /* arr size */ + v.iter().map(Self::uncompressed_size_of_payload).sum::<usize>()
+            }
+            Value::Compound(hm) => {
+                hm.iter().map(Self::size_of_compound_entry).sum::<usize>() + 1usize /* TAG_END */
+            } 
+            Value::ByteArray(ba) => 4 /* arr size */ + size_of::<i8>()*ba.len(),
+            Value::IntArray(ia) => 4 /* arr size */ + size_of::<i32>()*ia.len(),
+            Value::LongArray(la) => 4 /* arr size */ + size_of::<i64>()*la.len(),
+        }
+    }
 }
 
 impl fmt::Display for Value {
