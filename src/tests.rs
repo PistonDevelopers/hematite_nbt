@@ -403,5 +403,5 @@ fn nbt_sizes() {
     let mut cursor = std::io::Cursor::new(vec![]);
     root.to_writer(&mut cursor).unwrap();
 
-    assert_eq!(cursor.position() as usize, root.serialized_size());
+    assert_eq!(cursor.position() as usize, root.len_bytes());
 }

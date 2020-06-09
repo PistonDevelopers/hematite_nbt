@@ -153,7 +153,7 @@ impl Blob {
     }
 
     /// The number of bytes this blob will serialize to, before compression
-    pub fn serialized_size(&self) -> usize 
+    pub fn len_bytes(&self) -> usize 
     {
         1 /* compound tag */ 
         + 2 /* name length*/ 
