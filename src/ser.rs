@@ -119,7 +119,7 @@ impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
         where T: serde::Serialize
     {
         if !self.sigil {
-            value.serialize(&mut TagEncoder::from_outer(self.outer, Option::<String>::None))?;
+            value.serialize(&mut TagEncoder::from_outer(self.outer, Option::<&String>::None, false))?;
             raw::write_bare_int(&mut self.outer.writer, self.length)?;
             self.sigil = true;
         }
@@ -141,7 +141,7 @@ impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
                                   -> Result<()>
         where T: serde::Serialize
     {
-        value.serialize(&mut TagEncoder::from_outer(self.outer, Some(key)))?;
+        value.serialize(&mut TagEncoder::from_outer(self.outer, Some(&key), false))?;
         value.serialize(&mut InnerEncoder::from_outer(self.outer))
     }
 
@@ -172,7 +172,7 @@ impl<'a, 'b, W> ser::SerializeMap for Compound<'a, 'b, W>
         where K: serde::Serialize,
               V: serde::Serialize,
     {
-        value.serialize(&mut TagEncoder::from_outer(self.outer, Some(key)))?;
+        value.serialize(&mut TagEncoder::from_outer(self.outer, Some(&key), false))?;
         value.serialize(&mut InnerEncoder::from_outer(self.outer))
     }
 
@@ -398,23 +398,45 @@ impl<'a, 'b: 'a, W: 'a> serde::Serializer for &'a mut MapKeyEncoder<'a, 'b, W>
 /// A serializer for valid map keys.
 struct TagEncoder<'a, 'b: 'a, W: 'a, K> {
     outer: &'a mut Encoder<'b, W>,
-    key: Option<K>,
+    key: Option<&'a K>,
+    sequence_header: bool,
 }
 
 impl<'a, 'b: 'a, W: 'a, K> TagEncoder<'a, 'b, W, K>
 where W: io::Write,
       K: serde::Serialize
 {
-    fn from_outer(outer: &'a mut Encoder<'b, W>, key: Option<K>) -> Self {
+    fn from_outer(outer: &'a mut Encoder<'b, W>, key: Option<&'a K>, sequence_header: bool) -> Self {
         TagEncoder {
-            outer: outer, key: key
+            outer,
+            key,
+            sequence_header,
         }
     }
 
     fn write_header(&mut self, tag: i8) -> Result<()> {
         use serde::Serialize;
+
+        if self.key.is_none() && matches!(tag, 0x01 | 0x03 | 0x04) {
+            // Don't write headers in byte/integer/long arrays
+            return Ok(());
+        }
+
+        let tag = if self.sequence_header {
+            match tag {
+                0x01 => 0x07, // Byte array
+                0x03 => 0x0b, // Integer array
+                0x04 => 0x0c, // Long array
+                _ => 0x09, // List
+            }
+        } else {
+            tag
+        };
+
         raw::write_bare_byte(&mut self.outer.writer, tag)?;
-        self.key.serialize(&mut MapKeyEncoder::from_outer(self.outer))
+        self.key.serialize(&mut MapKeyEncoder::from_outer(self.outer))?;
+
+        Ok(())
     }
 }
 
@@ -424,7 +446,7 @@ where W: io::Write,
 {
     type Ok = ();
     type Error = Error;
-    type SerializeSeq = NoOp;
+    type SerializeSeq = SeqHeader<'a, 'b, W, K>;
     type SerializeTuple = ser::Impossible<(), Error>;
     type SerializeTupleStruct = ser::Impossible<(), Error>;
     type SerializeTupleVariant = ser::Impossible<(), Error>;
@@ -509,9 +531,26 @@ where W: io::Write,
 
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        if len.is_some() {
-            self.write_header(0x09)?;
-            Ok(NoOp)
+        if let Some(len) = len {
+            if self.sequence_header {
+                // List in a List
+                self.write_header(0x09)?;
+                self.key = None;
+            }
+
+            let written = if len == 0 {
+                self.write_header(0x09)?;
+
+                true
+            } else {
+                false
+            };
+
+            Ok(SeqHeader {
+                outer: self.outer,
+                key: self.key,
+                written,
+            })
         } else {
             Err(Error::UnrepresentableType("unsized list"))
         }
@@ -532,17 +571,38 @@ where W: io::Write,
     }
 }
 
-/// This empty serializer provides a way to serialize only headers/tags for
-/// sequences, maps, and structs.
-struct NoOp;
+/// This serializer writes the tag (list/array tag, (key)) for non-empty sequences.
+/// This infers the sequence element type from the first element written to the sequence
+/// to serialize i8, i32 or i64 sequences as ByteArray, IntegerArray or LongArray
+/// NBT types respectively.
+/// For every other sequence element type a normal NBT List tag is written.
+struct SeqHeader<'a, 'b: 'a, W: 'a, K> {
+    outer: &'a mut Encoder<'b, W>,
+    key: Option<&'a K>,
+    written: bool,
+}
 
-impl ser::SerializeSeq for NoOp {
+impl<'a, 'b: 'a, W: 'a, K> ser::SerializeSeq for SeqHeader<'a, 'b, W, K>
+    where
+        W: io::Write,
+        K: serde::Serialize,
+{
     type Ok = ();
     type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, _value: &T) -> Result<()>
-        where T: serde::Serialize
+    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
+        where
+            T: serde::Serialize,
     {
+        if !self.written {
+            // Write type-specific sequence header
+            let mut encoder = TagEncoder::from_outer(self.outer, self.key, true);
+            value.serialize(&mut encoder)?;
+
+            // Make sure we don't write the header again
+            self.written = true;
+        }
+
         Ok(())
     }
 
@@ -550,6 +610,10 @@ impl ser::SerializeSeq for NoOp {
         Ok(())
     }
 }
+
+/// This empty serializer provides a way to serialize only headers/tags for
+/// sequences, maps, and structs.
+struct NoOp;
 
 impl ser::SerializeStruct for NoOp {
     type Ok = ();
