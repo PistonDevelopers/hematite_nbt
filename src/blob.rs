@@ -151,6 +151,16 @@ impl Blob {
     {
         self.content.get(name.into())
     }
+
+    /// The number of bytes this blob will serialize to, before compression
+    pub fn len_bytes(&self) -> usize 
+    {
+        1 /* compound tag */ 
+        + 2 /* name length*/ 
+        + self.title.len() 
+        + self.content.iter().map(Value::size_of_compound_entry).sum::<usize>() 
+        + 1 /* TAG_END */
+    }
 }
 
 impl<'a> Index<&'a str> for Blob {

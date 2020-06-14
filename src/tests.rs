@@ -365,3 +365,43 @@ fn nbt_modified_utf8() {
     let file = Blob::from_reader(&mut src).unwrap();
     assert_eq!(&file, &nbt);
 }
+
+#[test]
+fn nbt_sizes() {
+    // Arbitarary values, covering most data types
+    let mut subtree = HashMap::<String, Value>::new();
+    subtree.insert("name".into(), "Herobrine".into());
+    subtree.insert("health".into(), 100i8.into());
+    subtree.insert("enormous".into(), 100i64.into());
+    subtree.insert("food".into(), 20.0f32.into());
+    subtree.insert("emeralds".into(), 12345i16.into());
+    subtree.insert("timestamp".into(), 1424778774i32.into());
+    subtree.insert("list".into(), Value::List(vec![1,2,3,4].into_iter().map(Value::Int).collect()));
+
+    let deeper_sub = Value::Compound(subtree.clone());
+
+    subtree.insert("recursion".into(), deeper_sub);
+
+    let subling_sub = Value::Compound(subtree.clone());
+    let orig_compound = Value::Compound(subtree);
+
+    // Here so this test covers every tag type
+    let byte_array = Value::ByteArray((-127..127).collect());
+    let int_array = Value::IntArray((0..128).collect());
+    let long_array = Value::LongArray((0..512).collect());
+
+    // Creating a blob that has weird nested compounds/lists/arrays
+    // Intended to cover all possible tags and make sure recursions 
+    // handle nested types correctly.
+    let mut root = Blob::new();
+    root.insert("List-C", Value::List(vec![orig_compound,subling_sub])).unwrap();
+    root.insert("List-B", byte_array).unwrap();
+    root.insert("List-I", int_array).unwrap();
+    root.insert("List-L", long_array).unwrap();
+
+    // Write out the blob
+    let mut cursor = std::io::Cursor::new(vec![]);
+    root.to_writer(&mut cursor).unwrap();
+
+    assert_eq!(cursor.position() as usize, root.len_bytes());
+}
