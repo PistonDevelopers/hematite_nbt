@@ -443,8 +443,6 @@ where W: io::Write,
     }
 
     fn write_header(&mut self, tag: i8) -> Result<()> {
-        use serde::Serialize;
-
         let tag = match self.tag_type {
             TagType::Normal( .. ) => tag,
             TagType::SeqTag( .. ) => match tag {

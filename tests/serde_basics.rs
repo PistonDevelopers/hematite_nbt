@@ -169,7 +169,7 @@ struct NestedArrayNbt {
 }
 
 #[test]
-fn deserialize_nested_array() {
+fn roundtrip_nested_array() {
     let nbt = NestedArrayNbt { data: vec!(vec!(1, 2), vec!(3, 4)) };
 
     let bytes = vec![
@@ -191,13 +191,17 @@ fn deserialize_nested_array() {
         0x00
     ];
 
-    let read: NestedArrayNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct ByteArrayNbt {
+    data: Vec<i8>,
 }
 
 #[test]
-fn deserialize_byte_array() {
-    let nbt = BasicListNbt { data: vec![1, 2, 3] };
+fn roundtrip_byte_array() {
+    let nbt = ByteArrayNbt { data: vec![1, 2, 3] };
 
     let bytes = vec![
         0x0a,
@@ -210,8 +214,7 @@ fn deserialize_byte_array() {
         0x00
     ];
 
-    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -238,7 +241,7 @@ fn deserialize_empty_array() {
 }
 
 #[test]
-fn deserialize_int_array() {
+fn roundtrip_int_array() {
     let nbt = IntListNbt { data: vec![1, 2, 3] };
 
     let bytes = vec![
@@ -255,8 +258,7 @@ fn deserialize_int_array() {
         0x00
     ];
 
-    let read: IntListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -265,7 +267,7 @@ struct LongListNbt {
 }
 
 #[test]
-fn deserialize_long_array() {
+fn roundtrip_long_array() {
     let nbt = LongListNbt { data: vec![1, 2, 3] };
 
     let bytes = vec![
@@ -282,8 +284,7 @@ fn deserialize_long_array() {
         0x00
     ];
 
-    let read: LongListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
