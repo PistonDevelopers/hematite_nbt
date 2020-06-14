@@ -350,18 +350,18 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 }
 
-/// A serializer for valid map keys, i.e. strings.
-struct MapKeyEncoder<'a, 'b: 'a, W: 'a> {
+/// A serializer for valid tag names, i.e. strings.
+struct TagNameEncoder<'a, 'b: 'a, W: 'a> {
     outer: &'a mut Encoder<'b, W>,
 }
 
-impl<'a, 'b: 'a, W: 'a> MapKeyEncoder<'a, 'b, W> where W: io::Write {
+impl<'a, 'b: 'a, W: 'a> TagNameEncoder<'a, 'b, W> where W: io::Write {
     pub fn from_outer(outer: &'a mut Encoder<'b, W>) -> Self {
-        MapKeyEncoder { outer: outer }
+        TagNameEncoder { outer: outer }
     }
 }
 
-impl<'a, 'b: 'a, W: 'a> serde::Serializer for &'a mut MapKeyEncoder<'a, 'b, W>
+impl<'a, 'b: 'a, W: 'a> serde::Serializer for &'a mut TagNameEncoder<'a, 'b, W>
     where W: io::Write
 {
     type Ok = ();
@@ -395,7 +395,7 @@ impl<'a, 'b: 'a, W: 'a> serde::Serializer for &'a mut MapKeyEncoder<'a, 'b, W>
     }
 }
 
-/// A serializer for valid map keys.
+/// A serializer for valid tags.
 struct TagEncoder<'a, 'b: 'a, W: 'a, K> {
     outer: &'a mut Encoder<'b, W>,
     key: Option<&'a K>,
@@ -434,7 +434,7 @@ where W: io::Write,
         };
 
         raw::write_bare_byte(&mut self.outer.writer, tag)?;
-        self.key.serialize(&mut MapKeyEncoder::from_outer(self.outer))?;
+        self.key.serialize(&mut TagNameEncoder::from_outer(self.outer))?;
 
         Ok(())
     }
