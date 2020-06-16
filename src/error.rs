@@ -60,42 +60,23 @@ impl fmt::Display for Error {
             #[cfg(feature = "serde")]
             &Error::Serde(ref msg)     => write!(f, "{}", msg),
             &Error::InvalidTypeId(t)   => write!(f, "invalid NBT tag byte: '{}'", t),
+            Error::HeterogeneousList   => write!(f, "values in NBT Lists must be homogeneous"),
+            Error::NoRootCompound      => write!(f, "the root value must be Compound-like (tag = 0x0a)"),
+            Error::InvalidUtf8         => write!(f, "a string is not valid UTF-8"),
+            Error::IncompleteNbtValue  => write!(f, "data does not represent a complete NbtValue"),
             &Error::TagMismatch(a, b)  => write!(f, "encountered NBT tag '{}' but expected '{}'", a, b),
             &Error::NonBooleanByte(b)  => write!(f, "encountered a byte value '{}' inside a boolean", b),
             &Error::UnexpectedField(ref name) => write!(f, "encountered an unexpected field '{}'", name),
             &Error::UnrepresentableType(ref name) => write!(f, "encountered type '{}', which has no meaningful NBT representation", name),
-            // Static messages should suffice for the remaining errors.
-            other => write!(f, "{}", other.description()),
+            Error::NonStringMapKey    => write!(f, "encountered a non-string map key"),
         }
     }
 }
 
 impl StdError for Error {
-    fn description(&self) -> &str {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match *self {
-            Error::IoError(ref e)     => e.description(),
-            #[cfg(feature = "serde")]
-            Error::Serde(ref msg)     => &msg[..],
-            Error::InvalidTypeId(_)   => "invalid NBT tag byte",
-            Error::HeterogeneousList  => "values in NBT Lists must be homogeneous",
-            Error::NoRootCompound     => "the root value must be Compound-like (tag = 0x0a)",
-            Error::InvalidUtf8        => "a string is not valid UTF-8",
-            Error::IncompleteNbtValue => "data does not represent a complete NbtValue",
-            Error::NonStringMapKey    => "encountered a non-string map key",
-            Error::TagMismatch(_, _)  => "encountered one NBT tag but expected another",
-            Error::UnexpectedField(_) => "encountered an unexpected field",
-            Error::NonBooleanByte(_)  => "encountered a non-boolean byte value inside a boolean",
-            Error::UnrepresentableType(_) => "encountered a type with no meaningful NBT representation",
-        }
-    }
-
-    // Deprecated in 1.33 in favour of source(), added in 1.30. This is recent
-    // enough that we should attempt to support older compilers, especially
-    // since we're on the 2015 edition at this time.
-    #[allow(deprecated)]
-    fn cause(&self) -> Option<&StdError> {
-        match *self {
-            Error::IoError(ref e) => e.cause(),
+            Error::IoError(ref e) => e.source(),
             _ => None
         }
     }
@@ -147,15 +128,7 @@ impl From<Error> for io::Error {
     fn from(e: Error) -> io::Error {
         match e {
             Error::IoError(e) => e,
-            Error::InvalidTypeId(id) =>
-                io::Error::new(InvalidInput, &format!("invalid NBT tag byte: {}", id)[..]),
-            Error::TagMismatch(a, b) =>
-                io::Error::new(InvalidInput, &format!("encountered NBT tag {} \
-                                                       but expected {}", a, b)[..]),
-            Error::UnexpectedField(f) =>
-                io::Error::new(InvalidInput, &format!("encountered unexpected field \
-                                                       with name {}", f)[..]),
-            other => io::Error::new(InvalidInput, other.description()),
+            other => io::Error::new(InvalidInput, other),
         }
     }
 }
