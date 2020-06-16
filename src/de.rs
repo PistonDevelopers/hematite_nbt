@@ -2,8 +2,8 @@
 
 use std::io;
 
-use serde::de;
 use flate2::read;
+use serde::de;
 
 use raw;
 
@@ -14,8 +14,9 @@ use error::{Error, Result};
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_reader<R, T>(src: R) -> Result<T>
-    where R: io::Read,
-          T: de::DeserializeOwned,
+where
+    R: io::Read,
+    T: de::DeserializeOwned,
 {
     let mut decoder = Decoder::new(src);
     de::Deserialize::deserialize(&mut decoder)
@@ -26,8 +27,9 @@ pub fn from_reader<R, T>(src: R) -> Result<T>
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_gzip_reader<R, T>(src: R) -> Result<T>
-    where R: io::Read,
-          T: de::DeserializeOwned,
+where
+    R: io::Read,
+    T: de::DeserializeOwned,
 {
     let gzip = read::GzDecoder::new(src)?;
     from_reader(gzip)
@@ -38,8 +40,9 @@ pub fn from_gzip_reader<R, T>(src: R) -> Result<T>
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_zlib_reader<R, T>(src: R) -> Result<T>
-    where R: io::Read,
-          T: de::DeserializeOwned,
+where
+    R: io::Read,
+    T: de::DeserializeOwned,
 {
     let zlib = read::ZlibDecoder::new(src);
     from_reader(zlib)
@@ -53,8 +56,10 @@ pub struct Decoder<R> {
     reader: R,
 }
 
-impl<R> Decoder<R> where R: io::Read {
-
+impl<R> Decoder<R>
+where
+    R: io::Read,
+{
     /// Create an NBT Decoder from a given `io::Read` source.
     pub fn new(src: R) -> Self {
         Decoder { reader: src }
@@ -65,45 +70,51 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
     type Error = Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
-        where V: de::Visitor<'de>
+    where
+        V: de::Visitor<'de>,
     {
         // The decoder cannot deserialize types by default. It can only handle
         // maps and structs.
         Err(Error::NoRootCompound)
     }
 
-    fn deserialize_struct<V>(self, _name: &'static str,
-                             _fields: &'static [&'static str], visitor: V)
-                             -> Result<V::Value>
-        where V: de::Visitor<'de>
+    fn deserialize_struct<V>(
+        self,
+        _name: &'static str,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
     {
         self.deserialize_map(visitor)
     }
 
-    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V)
-                                  -> Result<V::Value>
-        where V: de::Visitor<'de>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
     {
         visitor.visit_unit()
     }
 
     /// Deserialize newtype structs by their underlying types.
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V)
-                                     -> Result<V::Value>
-        where V: de::Visitor<'de>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
     {
         visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor<'de>
+    where
+        V: de::Visitor<'de>,
     {
         // Ignore the header (if there is one).
         let (tag, _) = raw::emit_next_header(&mut self.reader)?;
 
         match tag {
             0x0a => visitor.visit_map(MapDecoder::new(self)),
-            _ => Err(Error::NoRootCompound)
+            _ => Err(Error::NoRootCompound),
         }
     }
 
@@ -119,10 +130,15 @@ struct MapDecoder<'a, R: io::Read + 'a> {
     tag: Option<u8>,
 }
 
-impl<'a, R> MapDecoder<'a, R> where R: io::Read {
-
+impl<'a, R> MapDecoder<'a, R>
+where
+    R: io::Read,
+{
     fn new(outer: &'a mut Decoder<R>) -> Self {
-        MapDecoder { outer: outer, tag: None }
+        MapDecoder {
+            outer: outer,
+            tag: None,
+        }
     }
 }
 
@@ -130,7 +146,8 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
-        where K: de::DeserializeSeed<'de>
+    where
+        K: de::DeserializeSeed<'de>,
     {
         let tag = raw::read_bare_byte(&mut self.outer.reader)?;
 
@@ -143,16 +160,23 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
         self.tag = Some(tag as u8);
 
         // TODO: Enforce that keys must be String. This is a bit of a hack.
-        let mut de = InnerDecoder { outer: self.outer, tag: 0x08 };
+        let mut de = InnerDecoder {
+            outer: self.outer,
+            tag: 0x08,
+        };
 
         Ok(Some(seed.deserialize(&mut de)?))
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
-        where V: de::DeserializeSeed<'de>
+    where
+        V: de::DeserializeSeed<'de>,
     {
         let mut de = match self.tag {
-            Some(tag) => InnerDecoder { outer: self.outer, tag: tag },
+            Some(tag) => InnerDecoder {
+                outer: self.outer,
+                tag: tag,
+            },
             None => unimplemented!(),
         };
         Ok(seed.deserialize(&mut de)?)
@@ -167,25 +191,39 @@ struct SeqDecoder<'a, R: io::Read + 'a> {
     current: i32,
 }
 
-impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
-
+impl<'a, R> SeqDecoder<'a, R>
+where
+    R: io::Read,
+{
     fn list(outer: &'a mut Decoder<R>) -> Result<Self> {
         let tag = raw::read_bare_byte(&mut outer.reader)?;
         let length = raw::read_bare_int(&mut outer.reader)?;
-        Ok(SeqDecoder { outer: outer, tag: tag as u8, length: length,
-                        current: 0 })
+        Ok(SeqDecoder {
+            outer: outer,
+            tag: tag as u8,
+            length: length,
+            current: 0,
+        })
     }
 
     fn byte_array(outer: &'a mut Decoder<R>) -> Result<Self> {
         let length = raw::read_bare_int(&mut outer.reader)?;
-        Ok(SeqDecoder { outer: outer, tag: 0x01, length: length,
-                        current: 0 })
+        Ok(SeqDecoder {
+            outer: outer,
+            tag: 0x01,
+            length: length,
+            current: 0,
+        })
     }
 
     fn int_array(outer: &'a mut Decoder<R>) -> Result<Self> {
         let length = raw::read_bare_int(&mut outer.reader)?;
-        Ok(SeqDecoder { outer: outer, tag: 0x03, length: length,
-                        current: 0 })
+        Ok(SeqDecoder {
+            outer: outer,
+            tag: 0x03,
+            length: length,
+            current: 0,
+        })
     }
 
     fn long_array(outer: &'a mut Decoder<R>) -> Result<Self> {
@@ -203,13 +241,17 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
     type Error = Error;
 
     fn next_element_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
-        where K: de::DeserializeSeed<'de>
+    where
+        K: de::DeserializeSeed<'de>,
     {
         if self.current == self.length {
             return Ok(None);
         }
 
-        let mut de = InnerDecoder { outer: self.outer, tag: self.tag };
+        let mut de = InnerDecoder {
+            outer: self.outer,
+            tag: self.tag,
+        };
         let value = seed.deserialize(&mut de)?;
 
         self.current += 1;
@@ -233,7 +275,8 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor<'de>
+    where
+        V: de::Visitor<'de>,
     {
         let ref mut outer = self.outer;
 
@@ -256,7 +299,8 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
 
     /// Deserialize bool values from a byte. Fail if that byte is not 0 or 1.
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor<'de>
+    where
+        V: de::Visitor<'de>,
     {
         match self.tag {
             0x01 => {
@@ -267,35 +311,37 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
                     1 => visitor.visit_bool(true),
                     b => Err(Error::NonBooleanByte(b)),
                 }
-            },
+            }
             _ => Err(Error::TagMismatch(self.tag, 0x01)),
         }
     }
 
     /// Interpret missing values as None.
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor<'de>
+    where
+        V: de::Visitor<'de>,
     {
         visitor.visit_some(self)
     }
 
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
-        where V: de::Visitor<'de>
+    where
+        V: de::Visitor<'de>,
     {
         visitor.visit_unit()
     }
 
-    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V)
-                                  -> Result<V::Value>
-        where V: de::Visitor<'de>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
     {
         visitor.visit_unit()
     }
 
     /// Deserialize newtype structs by their underlying types.
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V)
-                                     -> Result<V::Value>
-        where V: de::Visitor<'de>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
     {
         visitor.visit_newtype_struct(self)
     }

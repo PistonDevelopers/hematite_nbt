@@ -4,9 +4,9 @@ use std::io;
 use std::ops::Index;
 
 use byteorder::WriteBytesExt;
-use flate2::Compression;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use flate2::write::{GzEncoder, ZlibEncoder};
+use flate2::Compression;
 
 use error::{Error, Result};
 use raw;
@@ -38,23 +38,33 @@ use value::Value;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Blob {
     title: String,
-    content: HashMap<String, Value>
+    content: HashMap<String, Value>,
 }
 
 impl Blob {
     /// Create a new NBT file format representation with an empty name.
     pub fn new() -> Blob {
-        Blob { title: "".to_string(), content: HashMap::new() }
+        Blob {
+            title: "".to_string(),
+            content: HashMap::new(),
+        }
     }
 
     /// Create a new NBT file format representation with the given name.
-    pub fn named<S>(name: S) -> Blob where S: Into<String> {
-        Blob { title: name.into(), content: HashMap::new() }
+    pub fn named<S>(name: S) -> Blob
+    where
+        S: Into<String>,
+    {
+        Blob {
+            title: name.into(),
+            content: HashMap::new(),
+        }
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
     pub fn from_reader<R>(src: &mut R) -> Result<Blob>
-        where R: io::Read
+    where
+        R: io::Read,
     {
         let (tag, title) = raw::emit_next_header(src)?;
         // Although it would be possible to read NBT format files composed of
@@ -65,7 +75,10 @@ impl Blob {
         }
         let content = Value::from_reader(tag, src)?;
         match content {
-            Value::Compound(map) => Ok(Blob { title: title, content: map }),
+            Value::Compound(map) => Ok(Blob {
+                title: title,
+                content: map,
+            }),
             _ => Err(Error::NoRootCompound),
         }
     }
@@ -73,7 +86,8 @@ impl Blob {
     /// Extracts an `Blob` object from an `io::Read` source that is
     /// compressed using the Gzip format.
     pub fn from_gzip_reader<R>(src: &mut R) -> Result<Blob>
-        where R: io::Read
+    where
+        R: io::Read,
     {
         // Reads the gzip header, and fails if it is incorrect.
         let mut data = GzDecoder::new(src)?;
@@ -83,7 +97,8 @@ impl Blob {
     /// Extracts an `Blob` object from an `io::Read` source that is
     /// compressed using the zlib format.
     pub fn from_zlib_reader<R>(src: &mut R) -> Result<Blob>
-        where R: io::Read
+    where
+        R: io::Read,
     {
         Blob::from_reader(&mut ZlibDecoder::new(src))
     }
@@ -91,7 +106,8 @@ impl Blob {
     /// Writes the binary representation of this `Blob` to an `io::Write`
     /// destination.
     pub fn to_writer<W>(&self, mut dst: &mut W) -> Result<()>
-        where W: io::Write
+    where
+        W: io::Write,
     {
         dst.write_u8(0x0a)?;
         raw::write_bare_string(&mut dst, &self.title)?;
@@ -106,7 +122,8 @@ impl Blob {
     /// Writes the binary representation of this `Blob`, compressed using
     /// the Gzip format, to an `io::Write` destination.
     pub fn to_gzip_writer<W>(&self, dst: &mut W) -> Result<()>
-        where W: io::Write
+    where
+        W: io::Write,
     {
         self.to_writer(&mut GzEncoder::new(dst, Compression::Default))
     }
@@ -114,7 +131,8 @@ impl Blob {
     /// Writes the binary representation of this `Blob`, compressed using
     /// the Zlib format, to an `io::Write` dst.
     pub fn to_zlib_writer<W>(&self, dst: &mut W) -> Result<()>
-        where W: io::Write
+    where
+        W: io::Write,
     {
         self.to_writer(&mut ZlibEncoder::new(dst, Compression::Default))
     }
@@ -127,7 +145,10 @@ impl Blob {
     /// heterogeneous elements is passed in, because this is illegal in the NBT
     /// file format.
     pub fn insert<S, V>(&mut self, name: S, value: V) -> Result<()>
-           where S: Into<String>, V: Into<Value> {
+    where
+        S: Into<String>,
+        V: Into<Value>,
+    {
         // The follow prevents `List`s with heterogeneous tags from being
         // inserted into the file.
         let nvalue = value.into();
@@ -136,7 +157,7 @@ impl Blob {
                 let first_id = vals[0].id();
                 for nbt in vals {
                     if nbt.id() != first_id {
-                        return Err(Error::HeterogeneousList)
+                        return Err(Error::HeterogeneousList);
                     }
                 }
             }
@@ -146,20 +167,22 @@ impl Blob {
     }
 
     /// Tries to get a named `Value` in the blob.
-    pub fn get<S>(&self, name: S) -> Option<&Value> 
-        where S: Into<&'static str>
+    pub fn get<S>(&self, name: S) -> Option<&Value>
+    where
+        S: Into<&'static str>,
     {
         self.content.get(name.into())
     }
 
     /// The number of bytes this blob will serialize to, before compression
-    pub fn len_bytes(&self) -> usize 
-    {
-        1 /* compound tag */ 
-        + 2 /* name length*/ 
-        + self.title.len() 
-        + self.content.iter().map(Value::size_of_compound_entry).sum::<usize>() 
-        + 1 /* TAG_END */
+    pub fn len_bytes(&self) -> usize {
+        /* compound tag + name length + TAG_End = 4 */
+        4 + self.title.len()
+            + self
+                .content
+                .iter()
+                .map(Value::size_of_compound_entry)
+                .sum::<usize>()
     }
 }
 
@@ -173,7 +196,12 @@ impl<'a> Index<&'a str> for Blob {
 
 impl fmt::Display for Blob {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TAG_Compound(\"{}\"): {} entry(ies)\n{{\n", self.title, self.content.len())?;
+        write!(
+            f,
+            "TAG_Compound(\"{}\"): {} entry(ies)\n{{\n",
+            self.title,
+            self.content.len()
+        )?;
         for (name, tag) in self.content.iter() {
             write!(f, "  {}(\"{}\"): ", tag.tag_name(), name)?;
             tag.print(f, 2)?;
@@ -209,6 +237,9 @@ impl<'de> serde::Deserialize<'de> for Blob {
     {
         // No support for named Blobs.
         let map: HashMap<String, Value> = serde::de::Deserialize::deserialize(deserializer)?;
-        Ok(Blob { title: "".to_string(), content: map })
+        Ok(Blob {
+            title: "".to_string(),
+            content: map,
+        })
     }
 }

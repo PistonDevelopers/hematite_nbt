@@ -56,19 +56,29 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Error::IoError(ref e)     => e.fmt(f),
+            &Error::IoError(ref e) => e.fmt(f),
             #[cfg(feature = "serde")]
-            &Error::Serde(ref msg)     => write!(f, "{}", msg),
-            &Error::InvalidTypeId(t)   => write!(f, "invalid NBT tag byte: '{}'", t),
-            Error::HeterogeneousList   => write!(f, "values in NBT Lists must be homogeneous"),
-            Error::NoRootCompound      => write!(f, "the root value must be Compound-like (tag = 0x0a)"),
-            Error::InvalidUtf8         => write!(f, "a string is not valid UTF-8"),
-            Error::IncompleteNbtValue  => write!(f, "data does not represent a complete NbtValue"),
-            &Error::TagMismatch(a, b)  => write!(f, "encountered NBT tag '{}' but expected '{}'", a, b),
-            &Error::NonBooleanByte(b)  => write!(f, "encountered a byte value '{}' inside a boolean", b),
-            &Error::UnexpectedField(ref name) => write!(f, "encountered an unexpected field '{}'", name),
-            &Error::UnrepresentableType(ref name) => write!(f, "encountered type '{}', which has no meaningful NBT representation", name),
-            Error::NonStringMapKey    => write!(f, "encountered a non-string map key"),
+            &Error::Serde(ref msg) => write!(f, "{}", msg),
+            &Error::InvalidTypeId(t) => write!(f, "invalid NBT tag byte: '{}'", t),
+            Error::HeterogeneousList => write!(f, "values in NBT Lists must be homogeneous"),
+            Error::NoRootCompound => write!(f, "the root value must be Compound-like (tag = 0x0a)"),
+            Error::InvalidUtf8 => write!(f, "a string is not valid UTF-8"),
+            Error::IncompleteNbtValue => write!(f, "data does not represent a complete NbtValue"),
+            &Error::TagMismatch(a, b) => {
+                write!(f, "encountered NBT tag '{}' but expected '{}'", a, b)
+            }
+            &Error::NonBooleanByte(b) => {
+                write!(f, "encountered a byte value '{}' inside a boolean", b)
+            }
+            &Error::UnexpectedField(ref name) => {
+                write!(f, "encountered an unexpected field '{}'", name)
+            }
+            &Error::UnrepresentableType(ref name) => write!(
+                f,
+                "encountered type '{}', which has no meaningful NBT representation",
+                name
+            ),
+            Error::NonStringMapKey => write!(f, "encountered a non-string map key"),
         }
     }
 }
@@ -77,7 +87,7 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match *self {
             Error::IoError(ref e) => e.source(),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -85,24 +95,25 @@ impl StdError for Error {
 // Implement PartialEq manually, since std::io::Error is not PartialEq.
 impl PartialEq<Error> for Error {
     fn eq(&self, other: &Error) -> bool {
-        use Error::{IoError, InvalidTypeId, HeterogeneousList, NoRootCompound,
-                    InvalidUtf8, IncompleteNbtValue, TagMismatch, UnexpectedField, NonBooleanByte,
-                    UnrepresentableType};
+        use Error::{
+            HeterogeneousList, IncompleteNbtValue, InvalidTypeId, InvalidUtf8, IoError,
+            NoRootCompound, NonBooleanByte, TagMismatch, UnexpectedField, UnrepresentableType,
+        };
 
         match (self, other) {
-            (&IoError(_), &IoError(_))                 => true,
+            (&IoError(_), &IoError(_)) => true,
             #[cfg(feature = "serde")]
-            (&Error::Serde(_), &Error::Serde(_))       => true,
-            (&InvalidTypeId(a), &InvalidTypeId(b))     => a == b,
-            (&HeterogeneousList, &HeterogeneousList)   => true,
-            (&NoRootCompound, &NoRootCompound)         => true,
-            (&InvalidUtf8, &InvalidUtf8)               => true,
+            (&Error::Serde(_), &Error::Serde(_)) => true,
+            (&InvalidTypeId(a), &InvalidTypeId(b)) => a == b,
+            (&HeterogeneousList, &HeterogeneousList) => true,
+            (&NoRootCompound, &NoRootCompound) => true,
+            (&InvalidUtf8, &InvalidUtf8) => true,
             (&IncompleteNbtValue, &IncompleteNbtValue) => true,
-            (&TagMismatch(a, b), &TagMismatch(c, d))   => a == c && b == d,
+            (&TagMismatch(a, b), &TagMismatch(c, d)) => a == c && b == d,
             (&UnexpectedField(ref a), &UnexpectedField(ref b)) => a == b,
-            (&NonBooleanByte(a), &NonBooleanByte(b))   => a == b,
+            (&NonBooleanByte(a), &NonBooleanByte(b)) => a == b,
             (&UnrepresentableType(ref a), &UnrepresentableType(ref b)) => a == b,
-            _ => false
+            _ => false,
         }
     }
 }

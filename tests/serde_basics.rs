@@ -12,7 +12,8 @@ use nbt::de::from_reader;
 /// deserialized from `bytes`. `name` is an optional header for the top-level
 /// NBT compound.
 fn assert_roundtrip_eq<T>(nbt: T, bytes: &[u8], name: Option<&str>)
-where for <'de> T: serde::Serialize + serde::Deserialize<'de> + PartialEq + std::fmt::Debug
+where
+    for<'de> T: serde::Serialize + serde::Deserialize<'de> + PartialEq + std::fmt::Debug,
 {
     let mut dst = Vec::with_capacity(bytes.len());
 
@@ -51,6 +52,7 @@ fn roundtrip_primitives() {
         string: "Herobrine".to_string(),
     };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x04, // Header: "data"
@@ -97,8 +99,11 @@ struct BasicListNbt {
 
 #[test]
 fn roundtrip_basic_list() {
-    let nbt = BasicListNbt { data: vec![1, 2, 3] };
+    let nbt = BasicListNbt {
+        data: vec![1, 2, 3],
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -118,8 +123,9 @@ fn roundtrip_basic_list() {
 
 #[test]
 fn roundtrip_empty_list() {
-    let nbt = BasicListNbt { data: vec!() };
+    let nbt = BasicListNbt { data: vec![] };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -141,8 +147,11 @@ struct NestedListNbt {
 
 #[test]
 fn roundtrip_nested_list() {
-    let nbt = NestedListNbt { data: vec!(vec!(1, 2), vec!(3, 4)) };
+    let nbt = NestedListNbt {
+        data: vec![vec![1, 2], vec![3, 4]],
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -170,8 +179,11 @@ struct NestedArrayNbt {
 
 #[test]
 fn deserialize_nested_array() {
-    let nbt = NestedArrayNbt { data: vec!(vec!(1, 2), vec!(3, 4)) };
+    let nbt = NestedArrayNbt {
+        data: vec![vec![1, 2], vec![3, 4]],
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -197,8 +209,11 @@ fn deserialize_nested_array() {
 
 #[test]
 fn deserialize_byte_array() {
-    let nbt = BasicListNbt { data: vec![1, 2, 3] };
+    let nbt = BasicListNbt {
+        data: vec![1, 2, 3],
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -221,8 +236,9 @@ struct IntListNbt {
 
 #[test]
 fn deserialize_empty_array() {
-    let nbt = IntListNbt { data: vec!() };
+    let nbt = IntListNbt { data: vec![] };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -239,8 +255,11 @@ fn deserialize_empty_array() {
 
 #[test]
 fn deserialize_int_array() {
-    let nbt = IntListNbt { data: vec![1, 2, 3] };
+    let nbt = IntListNbt {
+        data: vec![1, 2, 3],
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -266,8 +285,11 @@ struct LongListNbt {
 
 #[test]
 fn deserialize_long_array() {
-    let nbt = LongListNbt { data: vec![1, 2, 3] };
+    let nbt = LongListNbt {
+        data: vec![1, 2, 3],
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -295,6 +317,7 @@ struct BoolNbt {
 fn roundtrip_bool() {
     let nbt = BoolNbt { data: true };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -317,6 +340,7 @@ struct OptionNbt {
 fn roundtrip_some() {
     let nbt = OptionNbt { data: Some(100) };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -334,6 +358,7 @@ fn roundtrip_some() {
 fn roundtrip_none() {
     let nbt = OptionNbt { data: None };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -351,6 +376,7 @@ struct UnitStructNbt;
 fn roundtrip_unit_struct() {
     let nbt = UnitStructNbt;
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -367,6 +393,7 @@ struct NewByteNbt(ByteNbt);
 fn roundtrip_newtype_struct() {
     let nbt = NewByteNbt(ByteNbt { data: 100 });
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -387,8 +414,11 @@ struct NestedByteNbt {
 
 #[test]
 fn roundtrip_nested() {
-    let nbt = NestedByteNbt { data: ByteNbt { data: 100 } };
+    let nbt = NestedByteNbt {
+        data: ByteNbt { data: 100 },
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -413,8 +443,11 @@ struct NestedUnitStructNbt {
 
 #[test]
 fn roundtrip_nested_unit_struct() {
-    let nbt = NestedUnitStructNbt { data: UnitStructNbt };
+    let nbt = NestedUnitStructNbt {
+        data: UnitStructNbt,
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -436,8 +469,11 @@ struct NestedNewByteNbt {
 
 #[test]
 fn roundtrip_nested_newtype_struct() {
-    let nbt = NestedNewByteNbt { data: NewByteNbt(ByteNbt { data: 100 }) };
+    let nbt = NestedNewByteNbt {
+        data: NewByteNbt(ByteNbt { data: 100 }),
+    };
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -460,6 +496,7 @@ fn roundtrip_hashmap() {
     let mut nbt = HashMap::new();
     nbt.insert("data".to_string(), 100i8);
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,

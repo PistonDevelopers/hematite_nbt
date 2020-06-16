@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::io;
 use std::fs::File;
+use std::io;
 
 //use test::Bencher;
 
@@ -17,6 +17,7 @@ fn nbt_nonempty() {
     nbt.insert("emeralds", 12345i16).unwrap();
     nbt.insert("timestamp", 1424778774i32).unwrap();
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -61,6 +62,7 @@ fn nbt_nonempty() {
 fn nbt_empty_nbtfile() {
     let nbt = Blob::new();
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -85,6 +87,7 @@ fn nbt_nested_compound() {
     let mut nbt = Blob::new();
     nbt.insert("inner", Value::Compound(inner)).unwrap();
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -115,6 +118,7 @@ fn nbt_empty_list() {
     let mut nbt = Blob::new();
     nbt.insert("list", Value::List(Vec::new())).unwrap();
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -140,10 +144,12 @@ fn nbt_empty_list() {
 #[test]
 fn nbt_nested_list() {
     let mut nbt = Blob::new();
-    let inner_one = Value::List(vec!(Value::Short(1), Value::Short(2)));
-    let inner_two = Value::List(vec!(Value::Float(0.25), Value::Float(0.75)));
-    nbt.insert("list", Value::List(vec!(inner_one, inner_two))).unwrap();
+    let inner_one = Value::List(vec![Value::Short(1), Value::Short(2)]);
+    let inner_two = Value::List(vec![Value::Float(0.25), Value::Float(0.75)]);
+    nbt.insert("list", Value::List(vec![inner_one, inner_two]))
+        .unwrap();
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -177,12 +183,15 @@ fn nbt_nested_list() {
 fn nbt_no_root() {
     let bytes = vec![0x00];
     // Will fail, because the root is not a compound.
-    assert_eq!(Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
-            Err(Error::NoRootCompound));
+    assert_eq!(
+        Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
+        Err(Error::NoRootCompound)
+    );
 }
 
 #[test]
 fn nbt_no_end_tag() {
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -194,12 +203,15 @@ fn nbt_no_end_tag() {
     ];
 
     // Will fail, because there is no end tag.
-    assert_eq!(Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
-            Err(Error::IncompleteNbtValue));
+    assert_eq!(
+        Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
+        Err(Error::IncompleteNbtValue)
+    );
 }
 
 #[test]
 fn nbt_invalid_id() {
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -209,8 +221,10 @@ fn nbt_invalid_id() {
                 0x01,
         0x00
     ];
-    assert_eq!(Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
-               Err(Error::InvalidTypeId(15)));
+    assert_eq!(
+        Blob::from_reader(&mut io::Cursor::new(&bytes[..])),
+        Err(Error::InvalidTypeId(15))
+    );
 }
 
 #[test]
@@ -220,8 +234,10 @@ fn nbt_invalid_list() {
     badlist.push(Value::Byte(1));
     badlist.push(Value::Short(1));
     // Will fail to insert, because the List is heterogeneous.
-    assert_eq!(nbt.insert("list", Value::List(badlist)),
-               Err(Error::HeterogeneousList));
+    assert_eq!(
+        nbt.insert("list", Value::List(badlist)),
+        Err(Error::HeterogeneousList)
+    );
 }
 
 #[test]
@@ -236,7 +252,8 @@ fn nbt_bad_compression() {
 fn nbt_compression() {
     // Create a non-trivial Blob.
     let mut nbt = Blob::new();
-    nbt.insert("name", Value::String("Herobrine".to_string())).unwrap();
+    nbt.insert("name", Value::String("Herobrine".to_string()))
+        .unwrap();
     nbt.insert("health", Value::Byte(100)).unwrap();
     nbt.insert("food", Value::Float(20.0)).unwrap();
     nbt.insert("emeralds", Value::Short(12345)).unwrap();
@@ -298,6 +315,7 @@ fn serde_blob() {
     nbt.insert("emeralds", 12345i16).unwrap();
     nbt.insert("timestamp", 1424778774i32).unwrap();
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -344,6 +362,7 @@ fn nbt_modified_utf8() {
     // These strings are taken from the cesu8 documentation.
     nbt.insert("\u{10401}", "\0\0").unwrap();
 
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -376,7 +395,10 @@ fn nbt_sizes() {
     subtree.insert("food".into(), 20.0f32.into());
     subtree.insert("emeralds".into(), 12345i16.into());
     subtree.insert("timestamp".into(), 1424778774i32.into());
-    subtree.insert("list".into(), Value::List(vec![1,2,3,4].into_iter().map(Value::Int).collect()));
+    subtree.insert(
+        "list".into(),
+        Value::List(vec![1, 2, 3, 4].into_iter().map(Value::Int).collect()),
+    );
 
     let deeper_sub = Value::Compound(subtree.clone());
 
@@ -391,10 +413,11 @@ fn nbt_sizes() {
     let long_array = Value::LongArray((0..512).collect());
 
     // Creating a blob that has weird nested compounds/lists/arrays
-    // Intended to cover all possible tags and make sure recursions 
+    // Intended to cover all possible tags and make sure recursions
     // handle nested types correctly.
     let mut root = Blob::new();
-    root.insert("List-C", Value::List(vec![orig_compound,subling_sub])).unwrap();
+    root.insert("List-C", Value::List(vec![orig_compound, subling_sub]))
+        .unwrap();
     root.insert("List-B", byte_array).unwrap();
     root.insert("List-I", int_array).unwrap();
     root.insert("List-L", long_array).unwrap();

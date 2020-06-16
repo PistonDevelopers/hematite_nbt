@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io;
 
-use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use error::{Error, Result};
 use raw;
@@ -32,17 +32,17 @@ impl Value {
     /// `0x01` to `0x0b`.
     pub fn id(&self) -> u8 {
         match *self {
-            Value::Byte(_)      => 0x01,
-            Value::Short(_)     => 0x02,
-            Value::Int(_)       => 0x03,
-            Value::Long(_)      => 0x04,
-            Value::Float(_)     => 0x05,
-            Value::Double(_)    => 0x06,
+            Value::Byte(_) => 0x01,
+            Value::Short(_) => 0x02,
+            Value::Int(_) => 0x03,
+            Value::Long(_) => 0x04,
+            Value::Float(_) => 0x05,
+            Value::Double(_) => 0x06,
             Value::ByteArray(_) => 0x07,
-            Value::String(_)    => 0x08,
-            Value::List(_)      => 0x09,
-            Value::Compound(_)  => 0x0a,
-            Value::IntArray(_)  => 0x0b,
+            Value::String(_) => 0x08,
+            Value::List(_) => 0x09,
+            Value::Compound(_) => 0x0a,
+            Value::IntArray(_) => 0x0b,
             Value::LongArray(_) => 0x0c,
         }
     }
@@ -50,31 +50,32 @@ impl Value {
     /// A string representation of this tag.
     pub fn tag_name(&self) -> &str {
         match *self {
-            Value::Byte(_)      => "TAG_Byte",
-            Value::Short(_)     => "TAG_Short",
-            Value::Int(_)       => "TAG_Int",
-            Value::Long(_)      => "TAG_Long",
-            Value::Float(_)     => "TAG_Float",
-            Value::Double(_)    => "TAG_Double",
+            Value::Byte(_) => "TAG_Byte",
+            Value::Short(_) => "TAG_Short",
+            Value::Int(_) => "TAG_Int",
+            Value::Long(_) => "TAG_Long",
+            Value::Float(_) => "TAG_Float",
+            Value::Double(_) => "TAG_Double",
             Value::ByteArray(_) => "TAG_ByteArray",
-            Value::String(_)    => "TAG_String",
-            Value::List(_)      => "TAG_List",
-            Value::Compound(_)  => "TAG_Compound",
-            Value::IntArray(_)  => "TAG_IntArray",
+            Value::String(_) => "TAG_String",
+            Value::List(_) => "TAG_List",
+            Value::Compound(_) => "TAG_Compound",
+            Value::IntArray(_) => "TAG_IntArray",
             Value::LongArray(_) => "TAG_LongArray",
         }
     }
 
     /// Writes the payload of this `Value` to an `io::Write` destination.
     pub fn to_writer<W>(&self, mut dst: &mut W) -> Result<()>
-        where W: io::Write
+    where
+        W: io::Write,
     {
         match *self {
-            Value::Byte(val)   => raw::write_bare_byte(dst, val),
-            Value::Short(val)  => raw::write_bare_short(dst, val),
-            Value::Int(val)    => raw::write_bare_int(dst, val),
-            Value::Long(val)   => raw::write_bare_long(dst, val),
-            Value::Float(val)  => raw::write_bare_float(dst, val),
+            Value::Byte(val) => raw::write_bare_byte(dst, val),
+            Value::Short(val) => raw::write_bare_short(dst, val),
+            Value::Int(val) => raw::write_bare_int(dst, val),
+            Value::Long(val) => raw::write_bare_long(dst, val),
+            Value::Float(val) => raw::write_bare_float(dst, val),
             Value::Double(val) => raw::write_bare_double(dst, val),
             Value::ByteArray(ref vals) => raw::write_bare_byte_array(dst, &vals[..]),
             Value::String(ref val) => raw::write_bare_string(dst, &val),
@@ -98,8 +99,8 @@ impl Value {
                     }
                 }
                 Ok(())
-            },
-            Value::Compound(ref vals)  => {
+            }
+            Value::Compound(ref vals) => {
                 for (name, ref nbt) in vals {
                     // Write the header for the tag.
                     dst.write_u8(nbt.id())?;
@@ -107,7 +108,7 @@ impl Value {
                     nbt.to_writer(dst)?;
                 }
                 raw::close_nbt(&mut dst)
-            },
+            }
             Value::IntArray(ref vals) => raw::write_bare_int_array(dst, &vals[..]),
             Value::LongArray(ref vals) => raw::write_bare_long_array(dst, &vals[..]),
         }
@@ -116,7 +117,8 @@ impl Value {
     /// Reads the payload of an `Value` with a given type ID from an
     /// `io::Read` source.
     pub fn from_reader<R>(id: u8, src: &mut R) -> Result<Value>
-        where R: io::Read
+    where
+        R: io::Read,
     {
         match id {
             0x01 => Ok(Value::Byte(raw::read_bare_byte(src)?)),
@@ -127,7 +129,8 @@ impl Value {
             0x06 => Ok(Value::Double(raw::read_bare_double(src)?)),
             0x07 => Ok(Value::ByteArray(raw::read_bare_byte_array(src)?)),
             0x08 => Ok(Value::String(raw::read_bare_string(src)?)),
-            0x09 => { // List
+            0x09 => {
+                // List
                 let id = src.read_u8()?;
                 let len = src.read_i32::<BigEndian>()? as usize;
                 let mut buf = Vec::with_capacity(len);
@@ -135,30 +138,33 @@ impl Value {
                     buf.push(Value::from_reader(id, src)?);
                 }
                 Ok(Value::List(buf))
-            },
-            0x0a => { // Compound
+            }
+            0x0a => {
+                // Compound
                 let mut buf = HashMap::new();
                 loop {
                     let (id, name) = raw::emit_next_header(src)?;
-                    if id == 0x00 { break; }
+                    if id == 0x00 {
+                        break;
+                    }
                     let tag = Value::from_reader(id, src)?;
                     buf.insert(name, tag);
                 }
                 Ok(Value::Compound(buf))
-            },
+            }
             0x0b => Ok(Value::IntArray(raw::read_bare_int_array(src)?)),
             0x0c => Ok(Value::LongArray(raw::read_bare_long_array(src)?)),
-            e => Err(Error::InvalidTypeId(e))
+            e => Err(Error::InvalidTypeId(e)),
         }
     }
 
     pub fn print(&self, f: &mut fmt::Formatter, offset: usize) -> fmt::Result {
         match *self {
-            Value::Byte(v)   => write!(f, "{}", v),
-            Value::Short(v)  => write!(f, "{}", v),
-            Value::Int(v)    => write!(f, "{}", v),
-            Value::Long(v)   => write!(f, "{}", v),
-            Value::Float(v)  => write!(f, "{}", v),
+            Value::Byte(v) => write!(f, "{}", v),
+            Value::Short(v) => write!(f, "{}", v),
+            Value::Int(v) => write!(f, "{}", v),
+            Value::Long(v) => write!(f, "{}", v),
+            Value::Float(v) => write!(f, "{}", v),
             Value::Double(v) => write!(f, "{}", v),
             Value::ByteArray(ref v) => write!(f, "{:?}", v),
             Value::String(ref v) => write!(f, "{}", v),
@@ -168,10 +174,22 @@ impl Value {
                 if v.len() == 0 {
                     write!(f, "zero entries")
                 } else {
-                    write!(f, "{} entries of type {}\n{:>width$}\n", v.len(), v[0].tag_name(), "{", width = offset + 1)?;
+                    write!(
+                        f,
+                        "{} entries of type {}\n{:>width$}\n",
+                        v.len(),
+                        v[0].tag_name(),
+                        "{",
+                        width = offset + 1
+                    )?;
                     for tag in v {
                         let new_offset = offset + 2;
-                        write!(f, "{:>width$}(None): ", tag.tag_name(), width = new_offset + tag.tag_name().len())?;
+                        write!(
+                            f,
+                            "{:>width$}(None): ",
+                            tag.tag_name(),
+                            width = new_offset + tag.tag_name().len()
+                        )?;
                         tag.print(f, new_offset)?;
                         write!(f, "\n")?;
                     }
@@ -179,10 +197,22 @@ impl Value {
                 }
             }
             Value::Compound(ref v) => {
-                write!(f, "{} entry(ies)\n{:>width$}\n", v.len(), "{", width = offset + 1)?;
+                write!(
+                    f,
+                    "{} entry(ies)\n{:>width$}\n",
+                    v.len(),
+                    "{",
+                    width = offset + 1
+                )?;
                 for (name, tag) in v {
                     let new_offset = offset + 2;
-                    write!(f, "{:>width$}({}): ", tag.tag_name(), name, width = new_offset + tag.tag_name().len())?;
+                    write!(
+                        f,
+                        "{:>width$}({}): ",
+                        tag.tag_name(),
+                        name,
+                        width = new_offset + tag.tag_name().len()
+                    )?;
                     tag.print(f, new_offset)?;
                     write!(f, "\n")?;
                 }
@@ -208,19 +238,19 @@ impl Value {
     fn len_payload(&self) -> usize {
         use std::mem::size_of;
         match self {
-            Value::Byte(_)   => 1,
-            Value::Short(_)  => 2,
-            Value::Int(_)    => 4,
-            Value::Long(_)   => 8,
-            Value::Float(_)  => 4,
+            Value::Byte(_) => 1,
+            Value::Short(_) => 2,
+            Value::Int(_) => 4,
+            Value::Long(_) => 8,
+            Value::Float(_) => 4,
             Value::Double(_) => 8,
             Value::String(s) => 2 /* string size */ + s.len(),
             Value::List(v) => {
                 1 /* item tag */ + 4 /* arr size */ + v.iter().map(Self::len_payload).sum::<usize>()
             }
             Value::Compound(hm) => {
-                hm.iter().map(Self::size_of_compound_entry).sum::<usize>() + 1usize /* TAG_END */
-            } 
+                hm.iter().map(Self::size_of_compound_entry).sum::<usize>() + 1usize
+            }
             Value::ByteArray(ba) => 4 /* arr size */ + size_of::<i8>()*ba.len(),
             Value::IntArray(ia) => 4 /* arr size */ + size_of::<i32>()*ia.len(),
             Value::LongArray(la) => 4 /* arr size */ + size_of::<i64>()*la.len(),
@@ -235,57 +265,85 @@ impl fmt::Display for Value {
 }
 
 impl From<i8> for Value {
-    fn from(t: i8) -> Value { Value::Byte(t) }
+    fn from(t: i8) -> Value {
+        Value::Byte(t)
+    }
 }
 
 impl From<i16> for Value {
-    fn from(t: i16) -> Value { Value::Short(t) }
+    fn from(t: i16) -> Value {
+        Value::Short(t)
+    }
 }
 
 impl From<i32> for Value {
-    fn from(t: i32) -> Value { Value::Int(t) }
+    fn from(t: i32) -> Value {
+        Value::Int(t)
+    }
 }
 
 impl From<i64> for Value {
-    fn from(t: i64) -> Value { Value::Long(t) }
+    fn from(t: i64) -> Value {
+        Value::Long(t)
+    }
 }
 
 impl From<f32> for Value {
-    fn from(t: f32) -> Value { Value::Float(t) }
+    fn from(t: f32) -> Value {
+        Value::Float(t)
+    }
 }
 
 impl From<f64> for Value {
-    fn from(t: f64) -> Value { Value::Double(t) }
+    fn from(t: f64) -> Value {
+        Value::Double(t)
+    }
 }
 
 impl<'a> From<&'a str> for Value {
-    fn from(t: &'a str) -> Value { Value::String(t.into()) }
+    fn from(t: &'a str) -> Value {
+        Value::String(t.into())
+    }
 }
 
 impl From<String> for Value {
-    fn from(t: String) -> Value { Value::String(t) }
+    fn from(t: String) -> Value {
+        Value::String(t)
+    }
 }
 
 impl From<Vec<i8>> for Value {
-    fn from(t: Vec<i8>) -> Value { Value::ByteArray(t) }
+    fn from(t: Vec<i8>) -> Value {
+        Value::ByteArray(t)
+    }
 }
 
 impl<'a> From<&'a [i8]> for Value {
-    fn from(t: &'a [i8]) -> Value { Value::ByteArray(t.into()) }
+    fn from(t: &'a [i8]) -> Value {
+        Value::ByteArray(t.into())
+    }
 }
 
 impl From<Vec<i32>> for Value {
-    fn from(t: Vec<i32>) -> Value { Value::IntArray(t) }
+    fn from(t: Vec<i32>) -> Value {
+        Value::IntArray(t)
+    }
 }
 
 impl<'a> From<&'a [i32]> for Value {
-    fn from(t: &'a [i32]) -> Value { Value::IntArray(t.into()) }
+    fn from(t: &'a [i32]) -> Value {
+        Value::IntArray(t.into())
+    }
 }
 
 impl From<Vec<i64>> for Value {
-    fn from(t: Vec<i64>) -> Value { Value::LongArray(t) }
+    fn from(t: Vec<i64>) -> Value {
+        Value::LongArray(t)
+    }
 }
 
 impl<'a> From<&'a [i64]> for Value {
-    fn from(t: &'a [i64]) -> Value { Value::LongArray(t.into()) }
+    fn from(t: &'a [i64]) -> Value {
+        Value::LongArray(t.into())
+    }
 }

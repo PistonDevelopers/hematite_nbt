@@ -2,6 +2,8 @@ language: rust
 notifications:
   irc: "irc.mozilla.org#hematite"
 script:
+  - rustup component add rustfmt
+  - cargo fmt -- --check
   - cargo test -v
   - cargo doc -v
 after_success:

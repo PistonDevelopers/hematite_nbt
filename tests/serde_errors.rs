@@ -29,6 +29,7 @@ struct ByteNbt {
 
 #[test]
 fn incomplete_nbt() {
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -49,6 +50,7 @@ fn incomplete_nbt() {
 
 #[test]
 fn unknown_tag() {
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -70,6 +72,7 @@ fn unknown_tag() {
 
 #[test]
 fn deserialized_wrong_type() {
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,
@@ -84,8 +87,7 @@ fn deserialized_wrong_type() {
 
     assert!(read.is_err());
     match read.unwrap_err() {
-        Error::Serde(msg) =>
-            assert_eq!(&msg, "invalid type: string \"\", expected i8"),
+        Error::Serde(msg) => assert_eq!(&msg, "invalid type: string \"\", expected i8"),
         _ => panic!("encountered an unexpected error"),
     }
 }
@@ -97,6 +99,7 @@ struct BoolNbt {
 
 #[test]
 fn non_boolean_byte() {
+    #[rustfmt::skip]
     let bytes = vec![
         0x0a,
             0x00, 0x00,

@@ -5,7 +5,8 @@
 #![feature(test)]
 extern crate test;
 
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde;
 
 extern crate nbt;
@@ -48,18 +49,14 @@ fn deserialize_big1_as_blob(b: &mut Bencher) {
 fn serialize_big1_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/big1.nbt").unwrap();
     let nbt: data::Big1 = from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
-    });
+    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
 }
 
 #[bench]
 fn serialize_big1_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/big1.nbt").unwrap();
     let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        nbt.write(&mut io::sink())
-    });
+    b.iter(|| nbt.write(&mut io::sink()));
 }
 #[bench]
 fn deserialize_simple_player_as_struct(b: &mut Bencher) {
@@ -87,18 +84,14 @@ fn deserialize_simple_player_as_blob(b: &mut Bencher) {
 fn serialize_simple_player_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/simple_player.dat").unwrap();
     let nbt: data::PlayerData = from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
-    });
+    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
 }
 
 #[bench]
 fn serialize_simple_player_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/simple_player.dat").unwrap();
     let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        nbt.write(&mut io::sink())
-    });
+    b.iter(|| nbt.write(&mut io::sink()));
 }
 
 #[bench]
@@ -127,18 +120,14 @@ fn deserialize_complex_player_as_blob(b: &mut Bencher) {
 fn serialize_complex_player_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/complex_player.dat").unwrap();
     let nbt: data::PlayerData = from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
-    });
+    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
 }
 
 #[bench]
 fn serialize_complex_player_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/complex_player.dat").unwrap();
     let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        nbt.write(&mut io::sink())
-    });
+    b.iter(|| nbt.write(&mut io::sink()));
 }
 
 #[bench]
@@ -167,16 +156,12 @@ fn deserialize_level_as_blob(b: &mut Bencher) {
 fn serialize_level_as_struct(b: &mut Bencher) {
     let mut file = File::open("tests/level.dat").unwrap();
     let nbt: data::Level = from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        to_writer(&mut io::sink(), &nbt, None)
-    });
+    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
 }
 
 #[bench]
 fn serialize_level_as_blob(b: &mut Bencher) {
     let mut file = File::open("tests/level.dat").unwrap();
     let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| {
-        nbt.write(&mut io::sink())
-    });
+    b.iter(|| nbt.write(&mut io::sink()));
 }

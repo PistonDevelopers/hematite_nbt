@@ -2,10 +2,10 @@
 
 use std::io;
 
+use flate2::write::{GzEncoder, ZlibEncoder};
+use flate2::Compression;
 use serde;
 use serde::ser;
-use flate2::Compression;
-use flate2::write::{GzEncoder, ZlibEncoder};
 
 use raw;
 
@@ -14,10 +14,10 @@ use error::{Error, Result};
 /// Encode `value` in Named Binary Tag format to the given `io::Write`
 /// destination, with an optional header.
 #[inline]
-pub fn to_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
-                           -> Result<()>
-    where W: ?Sized + io::Write,
-          T: ?Sized + ser::Serialize,
+pub fn to_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>) -> Result<()>
+where
+    W: ?Sized + io::Write,
+    T: ?Sized + ser::Serialize,
 {
     let mut encoder = Encoder::new(dst, header);
     value.serialize(&mut encoder)
@@ -25,10 +25,10 @@ pub fn to_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
 
 /// Encode `value` in Named Binary Tag format to the given `io::Write`
 /// destination, with an optional header.
-pub fn to_gzip_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
-                           -> Result<()>
-    where W: ?Sized + io::Write,
-          T: ?Sized + ser::Serialize,
+pub fn to_gzip_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>) -> Result<()>
+where
+    W: ?Sized + io::Write,
+    T: ?Sized + ser::Serialize,
 {
     let mut encoder = Encoder::new(GzEncoder::new(dst, Compression::Default), header);
     value.serialize(&mut encoder)
@@ -36,10 +36,10 @@ pub fn to_gzip_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
 
 /// Encode `value` in Named Binary Tag format to the given `io::Write`
 /// destination, with an optional header.
-pub fn to_zlib_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>)
-                           -> Result<()>
-    where W: ?Sized + io::Write,
-          T: ?Sized + ser::Serialize,
+pub fn to_zlib_writer<'a, W, T>(dst: &mut W, value: &T, header: Option<&'a str>) -> Result<()>
+where
+    W: ?Sized + io::Write,
+    T: ?Sized + ser::Serialize,
 {
     let mut encoder = Encoder::new(ZlibEncoder::new(dst, Compression::Default), header);
     value.serialize(&mut encoder)
@@ -56,11 +56,16 @@ pub struct Encoder<'a, W> {
     header: Option<&'a str>,
 }
 
-impl<'a, W> Encoder<'a, W> where W: io::Write {
-
+impl<'a, W> Encoder<'a, W>
+where
+    W: io::Write,
+{
     /// Create an encoder with optional `header` from a given Writer.
     pub fn new(writer: W, header: Option<&'a str>) -> Self {
-        Encoder { writer: writer, header: header }
+        Encoder {
+            writer: writer,
+            header: header,
+        }
     }
 
     /// Write the NBT tag and an optional header to the underlying writer.
@@ -68,10 +73,8 @@ impl<'a, W> Encoder<'a, W> where W: io::Write {
     fn write_header(&mut self, tag: i8, header: Option<&str>) -> Result<()> {
         raw::write_bare_byte(&mut self.writer, tag)?;
         match header {
-            None =>
-                raw::write_bare_short(&mut self.writer, 0).map_err(From::from),
-            Some(h) =>
-                raw::write_bare_string(&mut self.writer, h).map_err(From::from),
+            None => raw::write_bare_short(&mut self.writer, 0).map_err(From::from),
+            Some(h) => raw::write_bare_string(&mut self.writer, h).map_err(From::from),
         }
     }
 }
@@ -81,7 +84,10 @@ struct InnerEncoder<'a, 'b: 'a, W: 'a> {
     outer: &'a mut Encoder<'b, W>,
 }
 
-impl<'a, 'b, W> InnerEncoder<'a, 'b, W> where W: io::Write {
+impl<'a, 'b, W> InnerEncoder<'a, 'b, W>
+where
+    W: io::Write,
+{
     pub fn from_outer(outer: &'a mut Encoder<'b, W>) -> Self {
         InnerEncoder { outer: outer }
     }
@@ -94,9 +100,16 @@ pub struct Compound<'a, 'b: 'a, W: 'a> {
     sigil: bool,
 }
 
-impl<'a, 'b, W> Compound<'a, 'b, W> where W: io::Write {
+impl<'a, 'b, W> Compound<'a, 'b, W>
+where
+    W: io::Write,
+{
     fn from_outer(outer: &'a mut Encoder<'b, W>) -> Self {
-        Compound { outer: outer, length: 0, sigil: false }
+        Compound {
+            outer: outer,
+            length: 0,
+            sigil: false,
+        }
     }
 
     fn for_seq(outer: &'a mut Encoder<'b, W>, length: i32) -> Result<Self> {
@@ -105,21 +118,30 @@ impl<'a, 'b, W> Compound<'a, 'b, W> where W: io::Write {
             raw::write_bare_byte(&mut outer.writer, 0x00)?;
             raw::write_bare_int(&mut outer.writer, 0)?;
         }
-        Ok(Compound { outer: outer, length: length, sigil: false })
+        Ok(Compound {
+            outer: outer,
+            length: length,
+            sigil: false,
+        })
     }
 }
 
 impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
-    where W: io::Write
+where
+    W: io::Write,
 {
     type Ok = ();
     type Error = Error;
 
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
-        where T: serde::Serialize
+    where
+        T: serde::Serialize,
     {
         if !self.sigil {
-            value.serialize(&mut TagEncoder::from_outer(self.outer, Option::<String>::None))?;
+            value.serialize(&mut TagEncoder::from_outer(
+                self.outer,
+                Option::<String>::None,
+            ))?;
             raw::write_bare_int(&mut self.outer.writer, self.length)?;
             self.sigil = true;
         }
@@ -132,14 +154,15 @@ impl<'a, 'b, W> ser::SerializeSeq for Compound<'a, 'b, W>
 }
 
 impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
-    where W: io::Write
+where
+    W: io::Write,
 {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T)
-                                  -> Result<()>
-        where T: serde::Serialize
+    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: serde::Serialize,
     {
         value.serialize(&mut TagEncoder::from_outer(self.outer, Some(key)))?;
         value.serialize(&mut InnerEncoder::from_outer(self.outer))
@@ -151,26 +174,30 @@ impl<'a, 'b, W> ser::SerializeStruct for Compound<'a, 'b, W>
 }
 
 impl<'a, 'b, W> ser::SerializeMap for Compound<'a, 'b, W>
-    where W: io::Write
+where
+    W: io::Write,
 {
     type Ok = ();
     type Error = Error;
 
     fn serialize_key<T: ?Sized>(&mut self, _key: &T) -> Result<()>
-        where T: serde::Serialize
+    where
+        T: serde::Serialize,
     {
         unimplemented!()
     }
 
     fn serialize_value<T: ?Sized>(&mut self, _value: &T) -> Result<()>
-        where T: serde::Serialize
+    where
+        T: serde::Serialize,
     {
         unimplemented!()
     }
 
     fn serialize_entry<K: ?Sized, V: ?Sized>(&mut self, key: &K, value: &V) -> Result<()>
-        where K: serde::Serialize,
-              V: serde::Serialize,
+    where
+        K: serde::Serialize,
+        V: serde::Serialize,
     {
         value.serialize(&mut TagEncoder::from_outer(self.outer, Some(key)))?;
         value.serialize(&mut InnerEncoder::from_outer(self.outer))
@@ -181,7 +208,10 @@ impl<'a, 'b, W> ser::SerializeMap for Compound<'a, 'b, W>
     }
 }
 
-impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write {
+impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W>
+where
+    W: io::Write,
+{
     type Ok = ();
     type Error = Error;
     type SerializeSeq = ser::Impossible<(), Error>;
@@ -209,9 +239,9 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     /// Serialize newtype structs by their underlying type. Note that this will
     /// only be successful if the underyling type is a struct or a map.
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T)
-                                           -> Result<()>
-        where T: ser::Serialize
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<()>
+    where
+        T: ser::Serialize,
     {
         value.serialize(self)
     }
@@ -226,16 +256,17 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
 
     /// Serialize structs as `Tag_Compound` data.
     #[inline]
-    fn serialize_struct(self, _name: &'static str, _len: usize)
-                        -> Result<Self::SerializeStruct>
-    {
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let header = self.header; // Circumvent strange borrowing errors.
         self.write_header(0x0a, header)?;
         Ok(Compound::from_outer(self))
     }
 }
 
-impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: io::Write {
+impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W>
+where
+    W: io::Write,
+{
     type Ok = ();
     type Error = Error;
     type SerializeSeq = Compound<'a, 'b, W>;
@@ -258,44 +289,37 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
 
     #[inline]
     fn serialize_i8(self, value: i8) -> Result<()> {
-        raw::write_bare_byte(&mut self.outer.writer, value)
-            .map_err(From::from)
+        raw::write_bare_byte(&mut self.outer.writer, value).map_err(From::from)
     }
 
     #[inline]
     fn serialize_i16(self, value: i16) -> Result<()> {
-        raw::write_bare_short(&mut self.outer.writer, value)
-            .map_err(From::from)
+        raw::write_bare_short(&mut self.outer.writer, value).map_err(From::from)
     }
 
     #[inline]
     fn serialize_i32(self, value: i32) -> Result<()> {
-        raw::write_bare_int(&mut self.outer.writer, value)
-            .map_err(From::from)
+        raw::write_bare_int(&mut self.outer.writer, value).map_err(From::from)
     }
 
     #[inline]
     fn serialize_i64(self, value: i64) -> Result<()> {
-        raw::write_bare_long(&mut self.outer.writer, value)
-            .map_err(From::from)
+        raw::write_bare_long(&mut self.outer.writer, value).map_err(From::from)
     }
 
     #[inline]
     fn serialize_f32(self, value: f32) -> Result<()> {
-        raw::write_bare_float(&mut self.outer.writer, value)
-            .map_err(From::from)
+        raw::write_bare_float(&mut self.outer.writer, value).map_err(From::from)
     }
 
     #[inline]
     fn serialize_f64(self, value: f64) -> Result<()> {
-        raw::write_bare_double(&mut self.outer.writer, value)
-            .map_err(From::from)
+        raw::write_bare_double(&mut self.outer.writer, value).map_err(From::from)
     }
 
     #[inline]
     fn serialize_str(self, value: &str) -> Result<()> {
-        raw::write_bare_string(&mut self.outer.writer, value)
-            .map_err(From::from)
+        raw::write_bare_string(&mut self.outer.writer, value).map_err(From::from)
     }
 
     #[inline]
@@ -310,7 +334,8 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
 
     #[inline]
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<()>
-        where T: ser::Serialize
+    where
+        T: ser::Serialize,
     {
         value.serialize(self)
     }
@@ -321,9 +346,9 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T)
-                                           -> Result<()>
-        where T: ser::Serialize
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<()>
+    where
+        T: ser::Serialize,
     {
         value.serialize(self)
     }
@@ -343,9 +368,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut InnerEncoder<'a, 'b, W> where W: i
     }
 
     #[inline]
-    fn serialize_struct(self, _name: &'static str, _len: usize)
-                        -> Result<Self::SerializeStruct>
-    {
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(Compound::from_outer(self.outer))
     }
 }
@@ -355,14 +378,18 @@ struct MapKeyEncoder<'a, 'b: 'a, W: 'a> {
     outer: &'a mut Encoder<'b, W>,
 }
 
-impl<'a, 'b: 'a, W: 'a> MapKeyEncoder<'a, 'b, W> where W: io::Write {
+impl<'a, 'b: 'a, W: 'a> MapKeyEncoder<'a, 'b, W>
+where
+    W: io::Write,
+{
     pub fn from_outer(outer: &'a mut Encoder<'b, W>) -> Self {
         MapKeyEncoder { outer: outer }
     }
 }
 
 impl<'a, 'b: 'a, W: 'a> serde::Serializer for &'a mut MapKeyEncoder<'a, 'b, W>
-    where W: io::Write
+where
+    W: io::Write,
 {
     type Ok = ();
     type Error = Error;
@@ -385,7 +412,8 @@ impl<'a, 'b: 'a, W: 'a> serde::Serializer for &'a mut MapKeyEncoder<'a, 'b, W>
     }
 
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<()>
-    where T: ser::Serialize
+    where
+        T: ser::Serialize,
     {
         value.serialize(self)
     }
@@ -402,25 +430,29 @@ struct TagEncoder<'a, 'b: 'a, W: 'a, K> {
 }
 
 impl<'a, 'b: 'a, W: 'a, K> TagEncoder<'a, 'b, W, K>
-where W: io::Write,
-      K: serde::Serialize
+where
+    W: io::Write,
+    K: serde::Serialize,
 {
     fn from_outer(outer: &'a mut Encoder<'b, W>, key: Option<K>) -> Self {
         TagEncoder {
-            outer: outer, key: key
+            outer: outer,
+            key: key,
         }
     }
 
     fn write_header(&mut self, tag: i8) -> Result<()> {
         use serde::Serialize;
         raw::write_bare_byte(&mut self.outer.writer, tag)?;
-        self.key.serialize(&mut MapKeyEncoder::from_outer(self.outer))
+        self.key
+            .serialize(&mut MapKeyEncoder::from_outer(self.outer))
     }
 }
 
 impl<'a, 'b: 'a, W: 'a, K> serde::Serializer for &'a mut TagEncoder<'a, 'b, W, K>
-where W: io::Write,
-      K: serde::Serialize
+where
+    W: io::Write,
+    K: serde::Serialize,
 {
     type Ok = ();
     type Error = Error;
@@ -489,7 +521,8 @@ where W: io::Write,
 
     #[inline]
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<()>
-        where T: ser::Serialize
+    where
+        T: ser::Serialize,
     {
         value.serialize(self)
     }
@@ -500,9 +533,9 @@ where W: io::Write,
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T)
-                                           -> Result<()>
-        where T: ser::Serialize
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<()>
+    where
+        T: ser::Serialize,
     {
         value.serialize(self)
     }
@@ -524,9 +557,7 @@ where W: io::Write,
     }
 
     #[inline]
-    fn serialize_struct(self, _name: &'static str, _len: usize)
-                        -> Result<Self::SerializeStruct>
-    {
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         self.write_header(0x0a)?;
         Ok(NoOp)
     }
@@ -541,7 +572,8 @@ impl ser::SerializeSeq for NoOp {
     type Error = Error;
 
     fn serialize_element<T: ?Sized>(&mut self, _value: &T) -> Result<()>
-        where T: serde::Serialize
+    where
+        T: serde::Serialize,
     {
         Ok(())
     }
@@ -555,9 +587,9 @@ impl ser::SerializeStruct for NoOp {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, _key: &'static str, _value: &T)
-                                  -> Result<()>
-        where T: serde::Serialize
+    fn serialize_field<T: ?Sized>(&mut self, _key: &'static str, _value: &T) -> Result<()>
+    where
+        T: serde::Serialize,
     {
         Ok(())
     }
@@ -572,13 +604,15 @@ impl ser::SerializeMap for NoOp {
     type Error = Error;
 
     fn serialize_key<T: ?Sized>(&mut self, _key: &T) -> Result<()>
-        where T: serde::Serialize
+    where
+        T: serde::Serialize,
     {
         Ok(())
     }
 
     fn serialize_value<T: ?Sized>(&mut self, _value: &T) -> Result<()>
-        where T: serde::Serialize
+    where
+        T: serde::Serialize,
     {
         Ok(())
     }

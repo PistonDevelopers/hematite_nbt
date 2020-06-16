@@ -30,121 +30,121 @@ macro_rules! return_expr_for_serialized_types_method {
 
 macro_rules! return_expr_for_serialized_types_helper {
     ($expr:expr, bool) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_bool(bool)}
+        return_expr_for_serialized_types_method! {$expr, serialize_bool(bool)}
     };
     ($expr:expr, i8) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_i8(i8)}
+        return_expr_for_serialized_types_method! {$expr, serialize_i8(i8)}
     };
     ($expr:expr, i16) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_i16(i16)}
+        return_expr_for_serialized_types_method! {$expr, serialize_i16(i16)}
     };
     ($expr:expr, i32) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_i32(i32)}
+        return_expr_for_serialized_types_method! {$expr, serialize_i32(i32)}
     };
     ($expr:expr, i64) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_i64(i64)}
+        return_expr_for_serialized_types_method! {$expr, serialize_i64(i64)}
     };
     ($expr:expr, u8) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_u8(u8)}
+        return_expr_for_serialized_types_method! {$expr, serialize_u8(u8)}
     };
     ($expr:expr, u16) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_u16(u16)}
+        return_expr_for_serialized_types_method! {$expr, serialize_u16(u16)}
     };
     ($expr:expr, u32) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_u32(u32)}
+        return_expr_for_serialized_types_method! {$expr, serialize_u32(u32)}
     };
     ($expr:expr, u64) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_u64(u64)}
+        return_expr_for_serialized_types_method! {$expr, serialize_u64(u64)}
     };
     ($expr:expr, f32) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_f32(f32)}
+        return_expr_for_serialized_types_method! {$expr, serialize_f32(f32)}
     };
     ($expr:expr, f64) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_f64(f64)}
+        return_expr_for_serialized_types_method! {$expr, serialize_f64(f64)}
     };
     ($expr:expr, char) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_char(char)}
+        return_expr_for_serialized_types_method! {$expr, serialize_char(char)}
     };
     ($expr:expr, str) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_str(&str)}
+        return_expr_for_serialized_types_method! {$expr, serialize_str(&str)}
     };
     ($expr:expr, bytes) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_bytes(&[u8])}
+        return_expr_for_serialized_types_method! {$expr, serialize_bytes(&[u8])}
     };
     ($expr:expr, none) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_none()}
+        return_expr_for_serialized_types_method! {$expr, serialize_none()}
     };
     ($expr:expr, unit) => {
-        return_expr_for_serialized_types_method!{$expr, serialize_unit()}
+        return_expr_for_serialized_types_method! {$expr, serialize_unit()}
     };
     ($expr:expr, unit_struct) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_unit_struct(&'static str)
         }
     };
     ($expr:expr, unit_variant) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_unit_variant(&'static str, u32, &'static str)
         }
     };
     ($expr:expr, some) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_some(&__T),
             where: ::serde::ser::Serialize
         }
     };
     ($expr:expr, newtype_struct) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_newtype_struct(&'static str, &__T),
             where: ::serde::ser::Serialize
         }
     };
     ($expr:expr, newtype_variant) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_newtype_variant(&'static str, u32,
                                               &'static str, &__T),
             where: ::serde::ser::Serialize
         }
     };
     ($expr:expr, seq) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_seq(Option<usize>),
             result: Self::SerializeSeq
         }
     };
     ($expr:expr, tuple) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_tuple(usize),
             result: Self::SerializeTuple
         }
     };
     ($expr:expr, tuple_struct) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_tuple_struct(&'static str, usize),
             result: Self::SerializeTupleStruct
         }
     };
     ($expr:expr, tuple_variant) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_tuple_variant(&'static str, u32, &'static str,
                                             usize),
             result: Self::SerializeTupleVariant
         }
     };
     ($expr:expr, map) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_map(Option<usize>),
             result: Self::SerializeMap
         }
     };
     ($expr:expr, struct) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_struct(&'static str, usize),
             result: Self::SerializeStruct
         }
     };
     ($expr:expr, struct_variant) => {
-        return_expr_for_serialized_types_method!{
+        return_expr_for_serialized_types_method! {
             $expr, serialize_struct_variant(&'static str, u32, &'static str,
                                              usize),
             result: Self::SerializeStructVariant
