@@ -35,7 +35,7 @@ use value::Value;
 /// let mut dst = Vec::new();
 /// nbt.to_zlib_writer(&mut dst).unwrap();
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Blob {
     title: String,
     content: HashMap<String, Value>,
@@ -76,7 +76,7 @@ impl Blob {
         let content = Value::from_reader(tag, src)?;
         match content {
             Value::Compound(map) => Ok(Blob {
-                title: title,
+                title,
                 content: map,
             }),
             _ => Err(Error::NoRootCompound),
@@ -153,7 +153,7 @@ impl Blob {
         // inserted into the file.
         let nvalue = value.into();
         if let Value::List(ref vals) = nvalue {
-            if vals.len() != 0 {
+            if !vals.is_empty() {
                 let first_id = vals[0].id();
                 for nbt in vals {
                     if nbt.id() != first_id {
@@ -205,7 +205,7 @@ impl fmt::Display for Blob {
         for (name, tag) in self.content.iter() {
             write!(f, "  {}(\"{}\"): ", tag.tag_name(), name)?;
             tag.print(f, 2)?;
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         write!(f, "}}")
     }

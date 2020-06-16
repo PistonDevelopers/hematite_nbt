@@ -62,10 +62,7 @@ where
 {
     /// Create an encoder with optional `header` from a given Writer.
     pub fn new(writer: W, header: Option<&'a str>) -> Self {
-        Encoder {
-            writer: writer,
-            header: header,
-        }
+        Encoder { writer, header }
     }
 
     /// Write the NBT tag and an optional header to the underlying writer.
@@ -89,7 +86,7 @@ where
     W: io::Write,
 {
     pub fn from_outer(outer: &'a mut Encoder<'b, W>) -> Self {
-        InnerEncoder { outer: outer }
+        InnerEncoder { outer }
     }
 }
 
@@ -106,7 +103,7 @@ where
 {
     fn from_outer(outer: &'a mut Encoder<'b, W>) -> Self {
         Compound {
-            outer: outer,
+            outer,
             length: 0,
             sigil: false,
         }
@@ -119,8 +116,8 @@ where
             raw::write_bare_int(&mut outer.writer, 0)?;
         }
         Ok(Compound {
-            outer: outer,
-            length: length,
+            outer,
+            length,
             sigil: false,
         })
     }
@@ -383,7 +380,7 @@ where
     W: io::Write,
 {
     pub fn from_outer(outer: &'a mut Encoder<'b, W>) -> Self {
-        MapKeyEncoder { outer: outer }
+        MapKeyEncoder { outer }
     }
 }
 
@@ -435,10 +432,7 @@ where
     K: serde::Serialize,
 {
     fn from_outer(outer: &'a mut Encoder<'b, W>, key: Option<K>) -> Self {
-        TagEncoder {
-            outer: outer,
-            key: key,
-        }
+        TagEncoder { outer, key }
     }
 
     fn write_header(&mut self, tag: i8) -> Result<()> {

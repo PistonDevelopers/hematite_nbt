@@ -82,7 +82,7 @@ impl Value {
             Value::List(ref vals) => {
                 // This is a bit of a trick: if the list is empty, don't bother
                 // checking its type.
-                if vals.len() == 0 {
+                if vals.is_empty() {
                     dst.write_u8(0)?; // TAG_End
                     dst.write_i32::<BigEndian>(0)?;
                 } else {
@@ -171,7 +171,7 @@ impl Value {
             Value::IntArray(ref v) => write!(f, "{:?}", v),
             Value::LongArray(ref v) => write!(f, "{:?}", v),
             Value::List(ref v) => {
-                if v.len() == 0 {
+                if v.is_empty() {
                     write!(f, "zero entries")
                 } else {
                     write!(
@@ -191,7 +191,7 @@ impl Value {
                             width = new_offset + tag.tag_name().len()
                         )?;
                         tag.print(f, new_offset)?;
-                        write!(f, "\n")?;
+                        writeln!(f)?;
                     }
                     write!(f, "{:>width$}", "}", width = offset + 1)
                 }
@@ -214,7 +214,7 @@ impl Value {
                         width = new_offset + tag.tag_name().len()
                     )?;
                     tag.print(f, new_offset)?;
-                    write!(f, "\n")?;
+                    writeln!(f)?;
                 }
                 write!(f, "{:>width$}", "}", width = offset + 1)
             }

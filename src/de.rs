@@ -135,10 +135,7 @@ where
     R: io::Read,
 {
     fn new(outer: &'a mut Decoder<R>) -> Self {
-        MapDecoder {
-            outer: outer,
-            tag: None,
-        }
+        MapDecoder { outer, tag: None }
     }
 }
 
@@ -175,7 +172,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
         let mut de = match self.tag {
             Some(tag) => InnerDecoder {
                 outer: self.outer,
-                tag: tag,
+                tag,
             },
             None => unimplemented!(),
         };
@@ -199,9 +196,9 @@ where
         let tag = raw::read_bare_byte(&mut outer.reader)?;
         let length = raw::read_bare_int(&mut outer.reader)?;
         Ok(SeqDecoder {
-            outer: outer,
+            outer,
             tag: tag as u8,
-            length: length,
+            length,
             current: 0,
         })
     }
@@ -209,9 +206,9 @@ where
     fn byte_array(outer: &'a mut Decoder<R>) -> Result<Self> {
         let length = raw::read_bare_int(&mut outer.reader)?;
         Ok(SeqDecoder {
-            outer: outer,
+            outer,
             tag: 0x01,
-            length: length,
+            length,
             current: 0,
         })
     }
@@ -219,9 +216,9 @@ where
     fn int_array(outer: &'a mut Decoder<R>) -> Result<Self> {
         let length = raw::read_bare_int(&mut outer.reader)?;
         Ok(SeqDecoder {
-            outer: outer,
+            outer,
             tag: 0x03,
-            length: length,
+            length,
             current: 0,
         })
     }
@@ -278,7 +275,7 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
     where
         V: de::Visitor<'de>,
     {
-        let ref mut outer = self.outer;
+        let outer = &mut self.outer;
 
         match self.tag {
             0x01 => visitor.visit_i8(raw::read_bare_byte(&mut outer.reader)?),
@@ -304,7 +301,7 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
     {
         match self.tag {
             0x01 => {
-                let ref mut reader = self.outer.reader;
+                let reader = &mut self.outer.reader;
                 let value = raw::read_bare_byte(reader)?;
                 match value {
                     0 => visitor.visit_bool(false),
