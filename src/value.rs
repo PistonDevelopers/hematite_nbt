@@ -82,19 +82,19 @@ impl Value {
                 // This is a bit of a trick: if the list is empty, don't bother
                 // checking its type.
                 if vals.len() == 0 {
-                    try!(dst.write_u8(0)); // TAG_End
-                    try!(dst.write_i32::<BigEndian>(0));
+                    dst.write_u8(0)?; // TAG_End
+                    dst.write_i32::<BigEndian>(0)?;
                 } else {
                     // Otherwise, use the first element of the list.
                     let first_id = vals[0].id();
-                    try!(dst.write_u8(first_id));
-                    try!(dst.write_i32::<BigEndian>(vals.len() as i32));
+                    dst.write_u8(first_id)?;
+                    dst.write_i32::<BigEndian>(vals.len() as i32)?;
                     for nbt in vals {
                         // Ensure that all of the tags are the same type.
                         if nbt.id() != first_id {
                             return Err(Error::HeterogeneousList);
                         }
-                        try!(nbt.to_writer(dst));
+                        nbt.to_writer(dst)?;
                     }
                 }
                 Ok(())
@@ -104,7 +104,7 @@ impl Value {
                     // Write the header for the tag.
                     dst.write_u8(nbt.id())?;
                     raw::write_bare_string(dst, name)?;
-                    try!(nbt.to_writer(dst));
+                    nbt.to_writer(dst)?;
                 }
                 raw::close_nbt(&mut dst)
             },
@@ -128,20 +128,20 @@ impl Value {
             0x07 => Ok(Value::ByteArray(raw::read_bare_byte_array(src)?)),
             0x08 => Ok(Value::String(raw::read_bare_string(src)?)),
             0x09 => { // List
-                let id = try!(src.read_u8());
-                let len = try!(src.read_i32::<BigEndian>()) as usize;
+                let id = src.read_u8()?;
+                let len = src.read_i32::<BigEndian>()? as usize;
                 let mut buf = Vec::with_capacity(len);
                 for _ in 0..len {
-                    buf.push(try!(Value::from_reader(id, src)));
+                    buf.push(Value::from_reader(id, src)?);
                 }
                 Ok(Value::List(buf))
             },
             0x0a => { // Compound
                 let mut buf = HashMap::new();
                 loop {
-                    let (id, name) = try!(raw::emit_next_header(src));
+                    let (id, name) = raw::emit_next_header(src)?;
                     if id == 0x00 { break; }
-                    let tag = try!(Value::from_reader(id, src));
+                    let tag = Value::from_reader(id, src)?;
                     buf.insert(name, tag);
                 }
                 Ok(Value::Compound(buf))

@@ -56,14 +56,14 @@ impl Blob {
     pub fn from_reader<R>(src: &mut R) -> Result<Blob>
         where R: io::Read
     {
-        let (tag, title) = try!(raw::emit_next_header(src));
+        let (tag, title) = raw::emit_next_header(src)?;
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
         // have a top-level Compound.
         if tag != 0x0a {
             return Err(Error::NoRootCompound);
         }
-        let content = try!(Value::from_reader(tag, src));
+        let content = Value::from_reader(tag, src)?;
         match content {
             Value::Compound(map) => Ok(Blob { title: title, content: map }),
             _ => Err(Error::NoRootCompound),
@@ -76,7 +76,7 @@ impl Blob {
         where R: io::Read
     {
         // Reads the gzip header, and fails if it is incorrect.
-        let mut data = try!(GzDecoder::new(src));
+        let mut data = GzDecoder::new(src)?;
         Blob::from_reader(&mut data)
     }
 

@@ -63,9 +63,9 @@ pub fn write_bare_double<W>(dst: &mut W, value: f64) -> Result<()>
 pub fn write_bare_byte_array<W>(dst: &mut W, value: &[i8]) -> Result<()>
    where W: io::Write
 {
-    try!(dst.write_i32::<BigEndian>(value.len() as i32));
+    dst.write_i32::<BigEndian>(value.len() as i32)?;
     for &v in value {
-        try!(dst.write_i8(v));
+        dst.write_i8(v)?;
     }
     Ok(())
 }
@@ -74,9 +74,9 @@ pub fn write_bare_byte_array<W>(dst: &mut W, value: &[i8]) -> Result<()>
 pub fn write_bare_int_array<W>(dst: &mut W, value: &[i32]) -> Result<()>
    where W: io::Write
 {
-    try!(dst.write_i32::<BigEndian>(value.len() as i32));
+    dst.write_i32::<BigEndian>(value.len() as i32)?;
     for &v in value {
-        try!(dst.write_i32::<BigEndian>(v));
+        dst.write_i32::<BigEndian>(v)?;
     }
     Ok(())
 }
@@ -97,7 +97,7 @@ pub fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<()>
    where W: io::Write
 {    
     let encoded = to_java_cesu8(value);
-    try!(dst.write_u16::<BigEndian>(encoded.len() as u16));
+    dst.write_u16::<BigEndian>(encoded.len() as u16)?;
     dst.write_all(&encoded).map_err(From::from)
 }
 
@@ -108,12 +108,12 @@ pub fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<()>
 pub fn emit_next_header<R>(src: &mut R) -> Result<(u8, String)>
     where R: io::Read
 {
-    let tag  = try!(src.read_u8());
+    let tag  = src.read_u8()?;
 
     match tag {
         0x00 => { Ok((tag, "".to_string())) },
         _    => {
-            let name = try!(read_bare_string(src));
+            let name = read_bare_string(src)?;
             Ok((tag, name))
         },
     }
@@ -166,11 +166,11 @@ pub fn read_bare_byte_array<R>(src: &mut R) -> Result<Vec<i8>>
     where R: io::Read
 {
     // FIXME: Is there a way to return [u8; len]?
-    let len = try!(src.read_i32::<BigEndian>()) as usize;
+    let len = src.read_i32::<BigEndian>()? as usize;
     let mut buf = Vec::with_capacity(len);
     // FIXME: Test performance vs transmute.
     for _ in 0..len {
-        buf.push(try!(src.read_i8()));
+        buf.push(src.read_i8()?);
     }
     Ok(buf)
 }
@@ -180,11 +180,11 @@ pub fn read_bare_int_array<R>(src: &mut R) -> Result<Vec<i32>>
     where R: io::Read
 {
     // FIXME: Is there a way to return [i32; len]?
-    let len = try!(src.read_i32::<BigEndian>()) as usize;
+    let len = src.read_i32::<BigEndian>()? as usize;
     let mut buf = Vec::with_capacity(len);
     // FIXME: Test performance vs transmute.
     for _ in 0..len {
-        buf.push(try!(src.read_i32::<BigEndian>()));
+        buf.push(src.read_i32::<BigEndian>()?);
     }
     Ok(buf)
 }
@@ -205,14 +205,14 @@ pub fn read_bare_long_array<R>(src: &mut R) -> Result<Vec<i64>>
 pub fn read_bare_string<R>(src: &mut R) -> Result<String>
     where R: io::Read
 {
-    let len = try!(src.read_u16::<BigEndian>()) as usize;
+    let len = src.read_u16::<BigEndian>()? as usize;
 
     if len == 0 { return Ok("".to_string()); }
 
     let mut bytes = vec![0; len];
     let mut n_read = 0usize;
     while n_read < bytes.len() {
-        match try!(src.read(&mut bytes[n_read..])) {
+        match src.read(&mut bytes[n_read..])? {
             0 => return Err(Error::IncompleteNbtValue),
             n => n_read += n
         }

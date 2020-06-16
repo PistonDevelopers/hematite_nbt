@@ -66,7 +66,7 @@ impl<'a, W> Encoder<'a, W> where W: io::Write {
     /// Write the NBT tag and an optional header to the underlying writer.
     #[inline]
     fn write_header(&mut self, tag: i8, header: Option<&str>) -> Result<()> {
-        try!(raw::write_bare_byte(&mut self.writer, tag));
+        raw::write_bare_byte(&mut self.writer, tag)?;
         match header {
             None =>
                 raw::write_bare_short(&mut self.writer, 0).map_err(From::from),
@@ -202,7 +202,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     #[inline]
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         let header = self.header; // Circumvent strange borrowing errors.
-        try!(self.write_header(0x0a, header));
+        self.write_header(0x0a, header)?;
         raw::close_nbt(&mut self.writer).map_err(From::from)
     }
 
@@ -220,7 +220,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         let header = self.header; // Circumvent strange borrowing errors.
-        try!(self.write_header(0x0a, header));
+        self.write_header(0x0a, header)?;
         Ok(Compound::from_outer(self))
     }
 
@@ -230,7 +230,7 @@ impl<'a, 'b, W> serde::Serializer for &'a mut Encoder<'b, W> where W: io::Write 
                         -> Result<Self::SerializeStruct>
     {
         let header = self.header; // Circumvent strange borrowing errors.
-        try!(self.write_header(0x0a, header));
+        self.write_header(0x0a, header)?;
         Ok(Compound::from_outer(self))
     }
 }

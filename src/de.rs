@@ -29,7 +29,7 @@ pub fn from_gzip_reader<R, T>(src: R) -> Result<T>
     where R: io::Read,
           T: de::DeserializeOwned,
 {
-    let gzip = try!(read::GzDecoder::new(src));
+    let gzip = read::GzDecoder::new(src)?;
     from_reader(gzip)
 }
 
@@ -99,7 +99,7 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
         where V: de::Visitor<'de>
     {
         // Ignore the header (if there is one).
-        let (tag, _) = try!(raw::emit_next_header(&mut self.reader));
+        let (tag, _) = raw::emit_next_header(&mut self.reader)?;
 
         match tag {
             0x0a => visitor.visit_map(MapDecoder::new(self)),
@@ -132,7 +132,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
         where K: de::DeserializeSeed<'de>
     {
-        let tag = try!(raw::read_bare_byte(&mut self.outer.reader));
+        let tag = raw::read_bare_byte(&mut self.outer.reader)?;
 
         // NBT indicates the end of a compound type with a 0x00 tag.
         if tag == 0x00 {
@@ -170,20 +170,20 @@ struct SeqDecoder<'a, R: io::Read + 'a> {
 impl<'a, R> SeqDecoder<'a, R> where R: io::Read {
 
     fn list(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let tag = try!(raw::read_bare_byte(&mut outer.reader));
-        let length = try!(raw::read_bare_int(&mut outer.reader));
+        let tag = raw::read_bare_byte(&mut outer.reader)?;
+        let length = raw::read_bare_int(&mut outer.reader)?;
         Ok(SeqDecoder { outer: outer, tag: tag as u8, length: length,
                         current: 0 })
     }
 
     fn byte_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = try!(raw::read_bare_int(&mut outer.reader));
+        let length = raw::read_bare_int(&mut outer.reader)?;
         Ok(SeqDecoder { outer: outer, tag: 0x01, length: length,
                         current: 0 })
     }
 
     fn int_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = try!(raw::read_bare_int(&mut outer.reader));
+        let length = raw::read_bare_int(&mut outer.reader)?;
         Ok(SeqDecoder { outer: outer, tag: 0x03, length: length,
                         current: 0 })
     }
@@ -210,7 +210,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
         }
 
         let mut de = InnerDecoder { outer: self.outer, tag: self.tag };
-        let value = try!(seed.deserialize(&mut de));
+        let value = seed.deserialize(&mut de)?;
 
         self.current += 1;
 
@@ -261,7 +261,7 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
         match self.tag {
             0x01 => {
                 let ref mut reader = self.outer.reader;
-                let value = try!(raw::read_bare_byte(reader));
+                let value = raw::read_bare_byte(reader)?;
                 match value {
                     0 => visitor.visit_bool(false),
                     1 => visitor.visit_bool(true),
