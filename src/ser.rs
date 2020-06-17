@@ -10,6 +10,7 @@ use serde::ser;
 use raw;
 
 use error::{Error, Result};
+use serde::ser::Error as SerError;
 
 /// Encode `value` in Named Binary Tag format to the given `io::Write`
 /// destination, with an optional header.
@@ -109,11 +110,15 @@ where
         }
     }
 
-    fn for_seq(outer: &'a mut Encoder<'b, W>, length: i32) -> Result<Self> {
-        // For an empty list, write TAG_End as the tag type.
-        if length == 0 {
-            raw::write_bare_byte(&mut outer.writer, 0x00)?;
-            raw::write_bare_int(&mut outer.writer, 0)?;
+    fn for_seq(outer: &'a mut Encoder<'b, W>, length: i32, array: bool) -> Result<Self> {
+        if length == 0 || array {
+            // Write sigil for empty list or typed array, because SerializeSeq::serialize_element is never called
+            if !array {
+                // For an empty list, write TAG_End as the tag type.
+                raw::write_bare_byte(&mut outer.writer, 0x00)?;
+            }
+            // Write list/array length
+            raw::write_bare_int(&mut outer.writer, length)?;
         }
         Ok(Compound {
             outer,
@@ -142,6 +147,25 @@ where
             raw::write_bare_int(&mut self.outer.writer, self.length)?;
             self.sigil = true;
         }
+        value.serialize(&mut InnerEncoder::from_outer(self.outer))
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, 'b, W> ser::SerializeTupleStruct for Compound<'a, 'b, W>
+where
+    W: io::Write,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    where
+        T: serde::Serialize,
+    {
         value.serialize(&mut InnerEncoder::from_outer(self.outer))
     }
 
@@ -268,14 +292,14 @@ where
     type Error = Error;
     type SerializeSeq = Compound<'a, 'b, W>;
     type SerializeTuple = ser::Impossible<(), Error>;
-    type SerializeTupleStruct = ser::Impossible<(), Error>;
+    type SerializeTupleStruct = Compound<'a, 'b, W>;
     type SerializeTupleVariant = ser::Impossible<(), Error>;
     type SerializeMap = Compound<'a, 'b, W>;
     type SerializeStruct = Compound<'a, 'b, W>;
     type SerializeStructVariant = ser::Impossible<(), Error>;
 
     unrepresentable!(
-        u8 u16 u32 u64 char unit unit_variant newtype_variant tuple tuple_struct
+        u8 u16 u32 u64 char unit unit_variant newtype_variant tuple
             tuple_variant struct_variant
     );
 
@@ -353,7 +377,7 @@ where
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         if let Some(l) = len {
-            Compound::for_seq(self.outer, l as i32)
+            Compound::for_seq(self.outer, l as i32, false)
         } else {
             Err(Error::UnrepresentableType("unsized list"))
         }
@@ -367,6 +391,19 @@ where
     #[inline]
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(Compound::from_outer(self.outer))
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        match name {
+            "__hematite_nbt_i8_array__"
+            | "__hematite_nbt_i32_array__"
+            | "__hematite_nbt_i64_array__" => Compound::for_seq(self.outer, len as i32, true),
+            _ => Err(Error::UnrepresentableType(stringify!(tuple_struct))),
+        }
     }
 }
 
@@ -452,14 +489,14 @@ where
     type Error = Error;
     type SerializeSeq = NoOp;
     type SerializeTuple = ser::Impossible<(), Error>;
-    type SerializeTupleStruct = ser::Impossible<(), Error>;
+    type SerializeTupleStruct = NoOp;
     type SerializeTupleVariant = ser::Impossible<(), Error>;
     type SerializeMap = NoOp;
     type SerializeStruct = NoOp;
     type SerializeStructVariant = ser::Impossible<(), Error>;
 
     unrepresentable!(
-        u8 u16 u32 u64 char unit unit_variant newtype_variant tuple tuple_struct
+        u8 u16 u32 u64 char unit unit_variant newtype_variant tuple
             tuple_variant struct_variant
     );
 
@@ -555,6 +592,21 @@ where
         self.write_header(0x0a)?;
         Ok(NoOp)
     }
+
+    fn serialize_tuple_struct(
+        self,
+        name: &'static str,
+        _len: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        match name {
+            "__hematite_nbt_i8_array__" => self.write_header(0x07)?,
+            "__hematite_nbt_i32_array__" => self.write_header(0x0b)?,
+            "__hematite_nbt_i64_array__" => self.write_header(0x0c)?,
+            _ => return Err(Error::UnrepresentableType("tuple struct")),
+        }
+
+        Ok(NoOp)
+    }
 }
 
 /// This empty serializer provides a way to serialize only headers/tags for
@@ -566,6 +618,22 @@ impl ser::SerializeSeq for NoOp {
     type Error = Error;
 
     fn serialize_element<T: ?Sized>(&mut self, _value: &T) -> Result<()>
+    where
+        T: serde::Serialize,
+    {
+        Ok(())
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl ser::SerializeTupleStruct for NoOp {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized>(&mut self, _value: &T) -> Result<()>
     where
         T: serde::Serialize,
     {
@@ -614,4 +682,124 @@ impl ser::SerializeMap for NoOp {
     fn end(self) -> Result<()> {
         Ok(())
     }
+}
+
+/// This function provides serde serialization support for NBT type `ByteArray`.
+///
+/// It should be used in conjunction with serde's field annotation `serialize_with`.
+/// In the following example `byte_data` will be serialized as a `ByteArray`
+/// instead of a `List` of `Byte`s:
+///
+/// ```
+/// extern crate serde;
+/// use nbt::to_writer;
+/// use serde::Serialize;
+///
+/// let mut serialized = Vec::new();
+///
+/// // Declare your struct
+/// #[derive(Serialize)]
+/// struct Sheep {
+///     #[serde(serialize_with="nbt::i8_array")]
+///     byte_data: Vec<i8>,
+/// }
+///
+/// // Serialize to NBT!
+/// to_writer(
+///     &mut serialized,
+///     &Sheep {
+///         byte_data: vec![0x62, 0x69, 0x6E, 0x61, 0x72, 0x79, 0x20, 0x73, 0x68, 0x65, 0x65, 0x70],
+///     },
+///     None
+/// ).unwrap();
+///
+/// print!("Serialized: {:?}", serialized);
+/// ```
+pub fn i8_array<'a, T, S>(array: &'a T, serializer: S) -> std::result::Result<S::Ok, S::Error>
+where
+    &'a T: IntoIterator,
+    <&'a T as IntoIterator>::Item: std::borrow::Borrow<i8>,
+    S: serde::ser::Serializer,
+{
+    array_serializer!("i8_array", array, serializer)
+}
+
+/// This function provides serde serialization support for NBT type `IntArray`.
+///
+/// It should be used in conjunction with serde's field annotation `serialize_with`.
+/// In the following example `int_data` will be serialized as an `IntArray`
+/// instead of a `List` of `Int`s:
+///
+/// ```
+/// extern crate serde;
+/// use nbt::to_writer;
+/// use serde::Serialize;
+///
+/// let mut serialized = Vec::new();
+///
+/// // Declare your struct
+/// #[derive(Serialize)]
+/// struct Cow {
+///     #[serde(serialize_with="nbt::i32_array")]
+///     int_data: Vec<i32>,
+/// }
+///
+/// // Serialize to NBT!
+/// to_writer(
+///     &mut serialized,
+///     &Cow {
+///         int_data: vec![1, 8, 64, 512, 4096, 32768, 262144],
+///     },
+///     None
+/// ).unwrap();
+///
+/// print!("Serialized: {:?}", serialized);
+/// ```
+pub fn i32_array<'a, T, S>(array: &'a T, serializer: S) -> std::result::Result<S::Ok, S::Error>
+where
+    &'a T: IntoIterator,
+    <&'a T as IntoIterator>::Item: std::borrow::Borrow<i32>,
+    S: serde::ser::Serializer,
+{
+    array_serializer!("i32_array", array, serializer)
+}
+
+/// This function provides serde serialization support for NBT type `LongArray`.
+///
+/// It should be used in conjunction with serde's field annotation `serialize_with`.
+/// In the following example `int_data` will be serialized as a `LongArray`
+/// instead of a `List` of `Int`s:
+///
+/// ```
+/// extern crate serde;
+/// use nbt::to_writer;
+/// use serde::Serialize;
+///
+/// let mut serialized = Vec::new();
+///
+/// // Declare your struct
+/// #[derive(Serialize)]
+/// struct Enderman {
+///     #[serde(serialize_with="nbt::i64_array")]
+///     long_data: Vec<i64>,
+/// }
+///
+/// // Serialize to NBT!
+/// to_writer(
+///     &mut serialized,
+///     &Enderman {
+///         long_data: vec![0x1848ccd2157df10e, 0x64c5efff28280e9a],
+///     },
+///     None
+/// ).unwrap();
+///
+/// print!("Serialized: {:?}", serialized);
+/// ```
+pub fn i64_array<'a, T, S>(array: &'a T, serializer: S) -> std::result::Result<S::Ok, S::Error>
+where
+    &'a T: IntoIterator,
+    <&'a T as IntoIterator>::Item: std::borrow::Borrow<i64>,
+    S: serde::ser::Serializer,
+{
+    array_serializer!("i64_array", array, serializer)
 }

@@ -172,3 +172,39 @@ macro_rules! unrepresentable {
         $(return_expr_for_serialized_types_helper!{Err(Error::UnrepresentableType(stringify!($type))), $type})*
     };
 }
+
+/// Serde `serialize_with` implementation for array serialization.
+///
+/// This macro provides the function body for `i8_array`, `i32_array` and `i64_array`
+/// in [`self::ser`], providing NBT `ByteArray`, `IntArray` and `LongArray`
+/// serialization with serde.
+macro_rules! array_serializer {
+    ($func_name:literal, $arr: ident, $serializer: ident) => {{
+        use serde::ser::SerializeTupleStruct;
+        use std::borrow::Borrow;
+
+        let error = concat!(
+            $func_name,
+            " serializer may only be used with known-length collections"
+        );
+        let magic = concat!("__hematite_nbt_", $func_name, "__");
+
+        let mut iter = $arr.into_iter();
+        let (length, max_length) = iter.size_hint();
+
+        if max_length.is_none() || length != max_length.unwrap() {
+            return Err(SerError::custom(error));
+        }
+
+        let mut seq = $serializer.serialize_tuple_struct(magic, length)?;
+        for _i in 0..length {
+            seq.serialize_field(iter.next().ok_or(SerError::custom(error))?.borrow())?;
+        }
+
+        if iter.next().is_some() {
+            Err(SerError::custom(error))
+        } else {
+            seq.end()
+        }
+    }};
+}

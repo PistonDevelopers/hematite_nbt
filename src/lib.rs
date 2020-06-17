@@ -14,6 +14,9 @@ pub use value::Value;
 pub use de::{from_gzip_reader, from_reader, from_zlib_reader};
 #[cfg(feature = "serde")]
 #[doc(inline)]
+pub use ser::{i32_array, i64_array, i8_array};
+#[cfg(feature = "serde")]
+#[doc(inline)]
 pub use ser::{to_gzip_writer, to_writer, to_zlib_writer};
 
 mod blob;

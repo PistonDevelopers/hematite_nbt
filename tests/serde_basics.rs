@@ -6,7 +6,7 @@ extern crate nbt;
 
 use std::collections::HashMap;
 
-use nbt::de::from_reader;
+use serde::Serializer;
 
 /// Helper function that asserts data of type T can be serialized into and
 /// deserialized from `bytes`. `name` is an optional header for the top-level
@@ -174,11 +174,23 @@ fn roundtrip_nested_list() {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct NestedArrayNbt {
+    #[serde(serialize_with = "nested_i32_array")]
     data: Vec<Vec<i32>>,
 }
 
+fn nested_i32_array<S>(outer_arr: &Vec<Vec<i32>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    #[derive(Debug, Serialize)]
+    struct Wrapper(#[serde(serialize_with = "nbt::i32_array")] Vec<i32>);
+
+    // clone should be optimized to a no-op
+    serializer.collect_seq(outer_arr.iter().map(|vec| Wrapper(vec.clone())))
+}
+
 #[test]
-fn deserialize_nested_array() {
+fn roundtrip_nested_array() {
     let nbt = NestedArrayNbt {
         data: vec![vec![1, 2], vec![3, 4]],
     };
@@ -203,13 +215,18 @@ fn deserialize_nested_array() {
         0x00
     ];
 
-    let read: NestedArrayNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct ByteArrayNbt {
+    #[serde(serialize_with = "nbt::i8_array")]
+    data: Vec<i8>,
 }
 
 #[test]
-fn deserialize_byte_array() {
-    let nbt = BasicListNbt {
+fn roundtrip_byte_array() {
+    let nbt = ByteArrayNbt {
         data: vec![1, 2, 3],
     };
 
@@ -225,18 +242,18 @@ fn deserialize_byte_array() {
         0x00
     ];
 
-    let read: BasicListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct IntListNbt {
+struct IntArrayNbt {
+    #[serde(serialize_with = "nbt::i32_array")]
     data: Vec<i32>,
 }
 
 #[test]
-fn deserialize_empty_array() {
-    let nbt = IntListNbt { data: vec![] };
+fn roundtrip_empty_array() {
+    let nbt = IntArrayNbt { data: vec![] };
 
     #[rustfmt::skip]
     let bytes = vec![
@@ -249,13 +266,12 @@ fn deserialize_empty_array() {
         0x00
     ];
 
-    let read: IntListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[test]
-fn deserialize_int_array() {
-    let nbt = IntListNbt {
+fn roundtrip_int_array() {
+    let nbt = IntArrayNbt {
         data: vec![1, 2, 3],
     };
 
@@ -274,18 +290,18 @@ fn deserialize_int_array() {
         0x00
     ];
 
-    let read: IntListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct LongListNbt {
+struct LongArrayNbt {
+    #[serde(serialize_with = "nbt::ser::i64_array")]
     data: Vec<i64>,
 }
 
 #[test]
-fn deserialize_long_array() {
-    let nbt = LongListNbt {
+fn roundtrip_long_array() {
+    let nbt = LongArrayNbt {
         data: vec![1, 2, 3],
     };
 
@@ -304,8 +320,7 @@ fn deserialize_long_array() {
         0x00
     ];
 
-    let read: LongListNbt = from_reader(&bytes[..]).unwrap();
-    assert_eq!(read, nbt)
+    assert_roundtrip_eq(nbt, &bytes, None);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
