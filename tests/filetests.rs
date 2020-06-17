@@ -85,7 +85,6 @@ fn deserialize_small4() {
 }
 
 #[test]
-#[ignore]
 fn deserialize_big1() {
     let nbt = Big1 {
         list_test_compound: vec![
@@ -101,7 +100,7 @@ fn deserialize_big1() {
         long_test: 9223372036854775807,
         short_test: 32767,
         byte_test: 127,
-        float_test: 0,
+        float_test: 0.4982314705848694,
         nested_compound_test: Big1Sub3 {
             ham: Big1Sub2 {
                 name: "Hampus".to_string(),
@@ -161,7 +160,7 @@ fn deserialize_big1() {
             60, 22, 94, 76, 68, 70, 82, 4, 36, 78, 30, 92, 64, 46, 38, 40, 52, 74, 6, 48,
         ],
         string_test: "HELLO WORLD THIS IS A TEST STRING ÅÄÖ!".to_string(),
-        list_test_long: [11, 12, 13, 14, 15],
+        list_test_long: vec![11, 12, 13, 14, 15],
         double_test: 0.4931287132182315,
         int_test: 2147483647,
     };
