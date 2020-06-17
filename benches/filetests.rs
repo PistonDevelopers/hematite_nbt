@@ -2,9 +2,7 @@
 //! sample NBT files in the test/ directory, which include real
 //! Minecraft-generated files.
 
-#![feature(test)]
-extern crate test;
-
+extern crate criterion;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -12,156 +10,63 @@ extern crate serde;
 extern crate nbt;
 
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, Read, Seek, SeekFrom};
 
-use test::Bencher;
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 
-use nbt::de::from_gzip;
+use nbt::de::from_gzip_reader;
 use nbt::ser::to_writer;
 
 mod data {
     include!("../tests/data.rs.in");
 }
 
-#[bench]
-fn deserialize_big1_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/big1.nbt").unwrap();
+fn bench_serialize<T>(filename: &str, c: &mut Criterion)
+where
+    T: serde::de::DeserializeOwned + serde::ser::Serialize,
+{
+    let mut file = File::open(filename).unwrap();
     let mut contents = Vec::new();
     file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::Big1 = from_gzip(&mut src).unwrap();
+    let mut src = std::io::Cursor::new(&contents[..]);
+    file.seek(SeekFrom::Start(0)).unwrap();
+    let nbt_struct: T = from_gzip_reader(&mut file).unwrap();
+    file.seek(SeekFrom::Start(0)).unwrap();
+    let nbt_blob = nbt::Blob::from_gzip_reader(&mut file).unwrap();
+
+    let mut group = c.benchmark_group(filename);
+    group.throughput(Throughput::Bytes(contents.len() as u64));
+    group.bench_function("Deserialize As Struct", |b| {
+        b.iter(|| {
+            src.seek(SeekFrom::Start(0)).unwrap();
+            let _: T = from_gzip_reader(&mut src).unwrap();
+        })
     });
-}
-
-#[bench]
-fn deserialize_big1_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/big1.nbt").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
+    group.bench_function("Deserialize As Blob", |b| {
+        b.iter(|| {
+            src.seek(SeekFrom::Start(0)).unwrap();
+            nbt::Blob::from_gzip_reader(&mut src).unwrap();
+        })
     });
-}
-
-#[bench]
-fn serialize_big1_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/big1.nbt").unwrap();
-    let nbt: data::Big1 = from_gzip(&mut file).unwrap();
-    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
-}
-
-#[bench]
-fn serialize_big1_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/big1.nbt").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| nbt.write(&mut io::sink()));
-}
-#[bench]
-fn deserialize_simple_player_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/simple_player.dat").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::PlayerData = from_gzip(&mut src).unwrap();
+    group.bench_function("Serialize As Struct", |b| {
+        b.iter(|| {
+            to_writer(&mut io::sink(), &nbt_struct, None).unwrap();
+        })
     });
-}
-
-#[bench]
-fn deserialize_simple_player_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/simple_player.dat").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
+    group.bench_function("Serialize As Blob", |b| {
+        b.iter(|| {
+            nbt_blob.to_writer(&mut io::sink()).unwrap();
+        })
     });
+    group.finish();
 }
 
-#[bench]
-fn serialize_simple_player_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/simple_player.dat").unwrap();
-    let nbt: data::PlayerData = from_gzip(&mut file).unwrap();
-    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
+fn bench(c: &mut Criterion) {
+    bench_serialize::<data::Big1>("tests/big1.nbt", c);
+    bench_serialize::<data::PlayerData>("tests/simple_player.dat", c);
+    bench_serialize::<data::PlayerData>("tests/complex_player.dat", c);
+    bench_serialize::<data::Level>("tests/level.dat", c);
 }
 
-#[bench]
-fn serialize_simple_player_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/simple_player.dat").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| nbt.write(&mut io::sink()));
-}
-
-#[bench]
-fn deserialize_complex_player_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/complex_player.dat").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::PlayerData = from_gzip(&mut src).unwrap();
-    });
-}
-
-#[bench]
-fn deserialize_complex_player_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/complex_player.dat").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
-    });
-}
-
-#[bench]
-fn serialize_complex_player_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/complex_player.dat").unwrap();
-    let nbt: data::PlayerData = from_gzip(&mut file).unwrap();
-    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
-}
-
-#[bench]
-fn serialize_complex_player_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/complex_player.dat").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| nbt.write(&mut io::sink()));
-}
-
-#[bench]
-fn deserialize_level_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/level.dat").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        let _: data::Level = from_gzip(&mut src).unwrap();
-    });
-}
-
-#[bench]
-fn deserialize_level_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/level.dat").unwrap();
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents).unwrap();
-    b.iter(|| {
-        let mut src = std::io::Cursor::new(&contents[..]);
-        nbt::Blob::from_gzip(&mut src).unwrap();
-    });
-}
-
-#[bench]
-fn serialize_level_as_struct(b: &mut Bencher) {
-    let mut file = File::open("tests/level.dat").unwrap();
-    let nbt: data::Level = from_gzip(&mut file).unwrap();
-    b.iter(|| to_writer(&mut io::sink(), &nbt, None));
-}
-
-#[bench]
-fn serialize_level_as_blob(b: &mut Bencher) {
-    let mut file = File::open("tests/level.dat").unwrap();
-    let nbt = nbt::Blob::from_gzip(&mut file).unwrap();
-    b.iter(|| nbt.write(&mut io::sink()));
-}
+criterion_group!(benches, bench);
+criterion_main!(benches);
