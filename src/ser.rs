@@ -715,10 +715,10 @@ impl ser::SerializeMap for NoOp {
 ///
 /// print!("Serialized: {:?}", serialized);
 /// ```
-pub fn i8_array<'a, T, S>(array: &'a T, serializer: S) -> std::result::Result<S::Ok, S::Error>
+pub fn i8_array<T, S>(array: T, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
-    &'a T: IntoIterator,
-    <&'a T as IntoIterator>::Item: std::borrow::Borrow<i8>,
+    T: IntoIterator,
+    <T as IntoIterator>::Item: std::borrow::Borrow<i8>,
     S: serde::ser::Serializer,
 {
     array_serializer!("i8_array", array, serializer)
@@ -755,10 +755,10 @@ where
 ///
 /// print!("Serialized: {:?}", serialized);
 /// ```
-pub fn i32_array<'a, T, S>(array: &'a T, serializer: S) -> std::result::Result<S::Ok, S::Error>
+pub fn i32_array<T, S>(array: T, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
-    &'a T: IntoIterator,
-    <&'a T as IntoIterator>::Item: std::borrow::Borrow<i32>,
+    T: IntoIterator,
+    <T as IntoIterator>::Item: std::borrow::Borrow<i32>,
     S: serde::ser::Serializer,
 {
     array_serializer!("i32_array", array, serializer)
@@ -795,10 +795,10 @@ where
 ///
 /// print!("Serialized: {:?}", serialized);
 /// ```
-pub fn i64_array<'a, T, S>(array: &'a T, serializer: S) -> std::result::Result<S::Ok, S::Error>
+pub fn i64_array<T, S>(array: T, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
-    &'a T: IntoIterator,
-    <&'a T as IntoIterator>::Item: std::borrow::Borrow<i64>,
+    T: IntoIterator,
+    <T as IntoIterator>::Item: std::borrow::Borrow<i64>,
     S: serde::ser::Serializer,
 {
     array_serializer!("i64_array", array, serializer)

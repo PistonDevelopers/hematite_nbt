@@ -6,7 +6,7 @@ extern crate nbt;
 
 use std::collections::HashMap;
 
-use serde::Serializer;
+use serde::{Serialize, Serializer};
 
 /// Helper function that asserts data of type T can be serialized into and
 /// deserialized from `bytes`. `name` is an optional header for the top-level
@@ -182,11 +182,16 @@ fn nested_i32_array<S>(outer_arr: &Vec<Vec<i32>>, serializer: S) -> Result<S::Ok
 where
     S: Serializer,
 {
-    #[derive(Debug, Serialize)]
-    struct Wrapper(#[serde(serialize_with = "nbt::i32_array")] Vec<i32>);
+    #[derive(Debug)]
+    struct Wrapper<'a>(&'a Vec<i32>);
 
-    // clone should be optimized to a no-op
-    serializer.collect_seq(outer_arr.iter().map(|vec| Wrapper(vec.clone())))
+    impl<'a> Serialize for Wrapper<'a> {
+        fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            nbt::i32_array(self.0, serializer)
+        }
+    }
+
+    serializer.collect_seq(outer_arr.iter().map(|vec| Wrapper(vec)))
 }
 
 #[test]
@@ -321,6 +326,44 @@ fn roundtrip_long_array() {
     ];
 
     assert_roundtrip_eq(nbt, &bytes, None);
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+struct CustomSerializerArrayNbt {
+    #[serde(serialize_with = "shift_right_serializer")]
+    data: Vec<i16>,
+}
+
+// We want to serialize an i16 vector as a ByteArray by shifting every element right by 8 bits
+fn shift_right_serializer<S>(original_array: &Vec<i16>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    nbt::i8_array(original_array.iter().map(|&i| (i >> 8) as i8), serializer)
+}
+
+#[test]
+fn serialize_custom_serializer_array() {
+    let nbt = CustomSerializerArrayNbt {
+        data: vec![0xAABBu16 as i16, 0x3400, 0x1234, 0x0012],
+    };
+
+    #[rustfmt::skip]
+    let bytes = vec![
+        0x0a,
+        0x00, 0x00,
+        0x07,
+        0x00, 0x04,
+        0x64, 0x61, 0x74, 0x61,
+        0x00, 0x00, 0x00, 0x04, // Length.
+        0xAA, 0x34, 0x12, 0x00, // Content.
+        0x00
+    ];
+
+    let mut dst = Vec::with_capacity(bytes.len());
+
+    nbt::ser::to_writer(&mut dst, &nbt, None).expect("NBT serialization.");
+    assert_eq!(bytes, &dst[..]);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
