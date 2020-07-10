@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::Map;
 use std::fmt;
 use std::io;
 use std::ops::Index;
@@ -38,7 +38,7 @@ use value::Value;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Blob {
     title: String,
-    content: HashMap<String, Value>,
+    content: Map<String, Value>,
 }
 
 impl Blob {
@@ -46,7 +46,7 @@ impl Blob {
     pub fn new() -> Blob {
         Blob {
             title: "".to_string(),
-            content: HashMap::new(),
+            content: Map::new(),
         }
     }
 
@@ -57,7 +57,7 @@ impl Blob {
     {
         Blob {
             title: name.into(),
-            content: HashMap::new(),
+            content: Map::new(),
         }
     }
 
@@ -138,7 +138,7 @@ impl Blob {
     }
 
     /// Insert an `Value` with a given name into this `Blob` object. This
-    /// method is just a thin wrapper around the underlying `HashMap` method of
+    /// method is just a thin wrapper around the underlying map method of
     /// the same name.
     ///
     /// This method will also return an error if a `Value::List` with
@@ -236,7 +236,7 @@ impl<'de> serde::Deserialize<'de> for Blob {
         D: serde::de::Deserializer<'de>,
     {
         // No support for named Blobs.
-        let map: HashMap<String, Value> = serde::de::Deserialize::deserialize(deserializer)?;
+        let map: Map<String, Value> = serde::de::Deserialize::deserialize(deserializer)?;
         Ok(Blob {
             title: "".to_string(),
             content: map,

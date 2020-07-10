@@ -15,6 +15,7 @@ authors = [
 
 [features]
 default = ["serde"]
+preserve_order = ["indexmap"]
 
 [lib]
 name = "nbt"
@@ -25,6 +26,7 @@ bench = false
 byteorder = "1.0.0"
 cesu8 = "1.1.0"
 flate2 = "0.2"
+indexmap = { version = "1.4", optional = true, features = ["serde-1"] }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
 [dev-dependencies]

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io;
+use Map;
 
 //use test::Bencher;
 
@@ -45,12 +45,15 @@ fn nbt_nonempty() {
         0x00
     ];
 
-    // Test correct length.
+    // Test correct length and contents when field order is preserved
     let mut dst = Vec::new();
     nbt.to_writer(&mut dst).unwrap();
-    assert_eq!(bytes.len(), dst.len());
+    assert_eq!(&bytes.len(), &dst.len());
+    #[cfg(feature = "preserve_order")]
+    assert_eq!(&bytes, &dst);
 
-    // We can only test if the decoded bytes match, since the HashMap does
+    // When not using the preserve_order feature,
+    // we can only test if the decoded bytes match, since the HashMap does
     // not guarantee order (and so encoding is likely to be different, but
     // still correct).
     let mut src = io::Cursor::new(bytes);
@@ -82,7 +85,7 @@ fn nbt_empty_nbtfile() {
 
 #[test]
 fn nbt_nested_compound() {
-    let mut inner = HashMap::new();
+    let mut inner = Map::new();
     inner.insert("test".to_string(), Value::Byte(123));
     let mut nbt = Blob::new();
     nbt.insert("inner", Value::Compound(inner)).unwrap();
@@ -350,10 +353,13 @@ fn serde_blob() {
     assert_eq!(&file, &nbt);
     let mut dst = Vec::new();
     to_writer(&mut dst, &nbt, None).unwrap();
-    // We can only test if the decoded bytes match, since the HashMap does
+    // When the preserve_order feature is not enabled,
+    // we can only test if the decoded bytes match, since the HashMap does
     // not guarantee order (and so encoding is likely to be different, but
     // still correct).
     assert_eq!(&bytes.len(), &dst.len());
+    #[cfg(feature = "preserve_order")]
+    assert_eq!(&bytes, &dst);
 }
 
 #[test]
@@ -388,7 +394,7 @@ fn nbt_modified_utf8() {
 #[test]
 fn nbt_sizes() {
     // Arbitarary values, covering most data types
-    let mut subtree = HashMap::<String, Value>::new();
+    let mut subtree = Map::<String, Value>::new();
     subtree.insert("name".into(), "Herobrine".into());
     subtree.insert("health".into(), 100i8.into());
     subtree.insert("enormous".into(), 100i64.into());
