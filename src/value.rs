@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::Map;
 use std::fmt;
 use std::io;
 
@@ -22,7 +22,7 @@ pub enum Value {
     ByteArray(Vec<i8>),
     String(String),
     List(Vec<Value>),
-    Compound(HashMap<String, Value>),
+    Compound(Map<String, Value>),
     IntArray(Vec<i32>),
     LongArray(Vec<i64>),
 }
@@ -141,7 +141,7 @@ impl Value {
             }
             0x0a => {
                 // Compound
-                let mut buf = HashMap::new();
+                let mut buf = Map::new();
                 loop {
                     let (id, name) = raw::emit_next_header(src)?;
                     if id == 0x00 {

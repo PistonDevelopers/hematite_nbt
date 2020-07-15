@@ -9,6 +9,13 @@ pub use blob::Blob;
 pub use error::{Error, Result};
 pub use value::Value;
 
+#[cfg(feature = "preserve_order")]
+extern crate indexmap;
+#[cfg(feature = "preserve_order")]
+pub use indexmap::IndexMap as Map;
+#[cfg(not(feature = "preserve_order"))]
+pub use std::collections::HashMap as Map;
+
 #[cfg(feature = "serde")]
 #[doc(inline)]
 pub use de::{from_gzip_reader, from_reader, from_zlib_reader};
