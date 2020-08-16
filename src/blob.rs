@@ -90,7 +90,7 @@ impl Blob {
         R: io::Read,
     {
         // Reads the gzip header, and fails if it is incorrect.
-        let mut data = GzDecoder::new(src)?;
+        let mut data = GzDecoder::new(src);
         Blob::from_reader(&mut data)
     }
 
@@ -125,7 +125,7 @@ impl Blob {
     where
         W: io::Write,
     {
-        self.to_writer(&mut GzEncoder::new(dst, Compression::Default))
+        self.to_writer(&mut GzEncoder::new(dst, Compression::default()))
     }
 
     /// Writes the binary representation of this `Blob`, compressed using
@@ -134,7 +134,7 @@ impl Blob {
     where
         W: io::Write,
     {
-        self.to_writer(&mut ZlibEncoder::new(dst, Compression::Default))
+        self.to_writer(&mut ZlibEncoder::new(dst, Compression::default()))
     }
 
     /// Insert an `Value` with a given name into this `Blob` object. This
