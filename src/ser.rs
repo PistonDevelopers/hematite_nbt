@@ -31,7 +31,7 @@ where
     W: ?Sized + io::Write,
     T: ?Sized + ser::Serialize,
 {
-    let mut encoder = Encoder::new(GzEncoder::new(dst, Compression::Default), header);
+    let mut encoder = Encoder::new(GzEncoder::new(dst, Compression::default()), header);
     value.serialize(&mut encoder)
 }
 
@@ -42,7 +42,7 @@ where
     W: ?Sized + io::Write,
     T: ?Sized + ser::Serialize,
 {
-    let mut encoder = Encoder::new(ZlibEncoder::new(dst, Compression::Default), header);
+    let mut encoder = Encoder::new(ZlibEncoder::new(dst, Compression::default()), header);
     value.serialize(&mut encoder)
 }
 

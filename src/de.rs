@@ -31,7 +31,7 @@ where
     R: io::Read,
     T: de::DeserializeOwned,
 {
-    let gzip = read::GzDecoder::new(src)?;
+    let gzip = read::GzDecoder::new(src);
     from_reader(gzip)
 }
 
