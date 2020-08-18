@@ -1,3 +1,53 @@
+# hematite_nbt 0.5.0
+
+## New Features
+
+* Compiling with the `preserve_order` feature will use an `IndexMap` instead of
+  a `HashMap` for compound tags, which preserves insertion order when
+  serializing. (#54 by @samlich)
+
+* Structs can now be explicitly told to serialize as byte/int/long arrays
+  instead of a list under Serde by using `serialize_with` and the new
+  `i8_array()`, `i32_array()`, and `i64_array()` functions. (#51, #52, and #53
+  by @Schuwi). For example:
+
+```
+#[derive(Serialize)]
+struct MyStruct {
+    #[serde(serialize_with="hematite_nbt::i8_array")]
+    byte_array: Vec<i8>,
+}
+```
+
+* `Blob` now has a `len_bytes()` method to compute the expected length when
+  serialized, restoring functionality removed in #36. It turns out to be helpful
+  to know the length when writing NBT payloads into network packets. (#48 by
+  @ejmount)
+
+* `Blob` now has a `get()` method to get values by name; previously this was
+  only possible via indexing, which would panic if the key was absent. (#44 by
+  @vlakreeh)
+
+* `Blob` now implements `Default::default()`, as suggested by Clippy.
+
+## Bug Fixes and Other Improvements
+
+* The `flate2` dependency has been bumped to enable compilation for WASM. (#56
+  by @oOBoomberOo)
+
+* The use of various deprecated APIs in the Rust standard library has been
+  fixed, so consumers of this crate will no longer see build warnings. (#49 by
+  @atheriel)
+
+* `UnrepresentableType` will now correctly show the type in the error message,
+  instead of the literal string `$type`. (#47 by @caelunshun)
+
+* The benchmark suite has been rewritten to use Criterion, so it should compile
+  with stable Rust. However, it's not clear that the black-box benchmarks are
+  actually working properly at this time.
+
+* The project now uses and enforces `rustfmt` rules.
+
 # hematite_nbt 0.4.1
 
 * Strings are now encoded and decoded using [Modified UTF-8](https://en.wikipedia.org/wiki/UTF-8#Modified_UTF-8),
