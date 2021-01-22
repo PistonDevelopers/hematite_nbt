@@ -216,7 +216,7 @@ use serde::{self, ser::SerializeMap};
 
 #[cfg(feature = "serde")]
 impl serde::Serialize for Blob {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::ser::Serializer,
     {
@@ -231,7 +231,7 @@ impl serde::Serialize for Blob {
 
 #[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for Blob {
-    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
