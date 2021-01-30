@@ -198,7 +198,7 @@ macro_rules! array_serializer {
 
         let mut seq = $serializer.serialize_tuple_struct(magic, length)?;
         for _i in 0..length {
-            seq.serialize_field(iter.next().ok_or(SerError::custom(error))?.borrow())?;
+            seq.serialize_field(iter.next().ok_or_else(|| SerError::custom(error))?.borrow())?;
         }
 
         if iter.next().is_some() {
