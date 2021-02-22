@@ -1,3 +1,10 @@
+# hematite_nbt 0.5.1
+
+* Fixes a performance regression in array serialization. (#61 by @caelunshun)
+
+* Fixes an incompatibility with `serde` versions 1.0.119 and later. (#60 by
+  @Iaiao)
+
 # hematite_nbt 0.5.0
 
 ## New Features
