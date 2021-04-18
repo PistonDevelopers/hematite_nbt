@@ -299,7 +299,7 @@ where
     type SerializeStructVariant = ser::Impossible<(), Error>;
 
     unrepresentable!(
-        u8 u16 u32 u64 char unit unit_variant newtype_variant tuple
+        u8 u16 u32 u64 char unit newtype_variant tuple
             tuple_variant struct_variant
     );
 
@@ -341,6 +341,16 @@ where
     #[inline]
     fn serialize_str(self, value: &str) -> Result<()> {
         raw::write_bare_string(&mut self.outer.writer, value).map_err(From::from)
+    }
+
+    #[inline]
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<()> {
+        self.serialize_str(variant)
     }
 
     #[inline]
@@ -496,7 +506,7 @@ where
     type SerializeStructVariant = ser::Impossible<(), Error>;
 
     unrepresentable!(
-        u8 u16 u32 u64 char unit unit_variant newtype_variant tuple
+        u8 u16 u32 u64 char unit newtype_variant tuple
             tuple_variant struct_variant
     );
 
@@ -538,6 +548,16 @@ where
     #[inline]
     fn serialize_str(self, _value: &str) -> Result<()> {
         self.write_header(0x08)
+    }
+
+    #[inline]
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<()> {
+        self.serialize_str(variant)
     }
 
     #[inline]
