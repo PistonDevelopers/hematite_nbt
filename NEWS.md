@@ -1,3 +1,7 @@
+# hematite_nbt 0.5.2
+
+* Enum variants can now be serialized by name. (#62 by @Freax13)
+
 # hematite_nbt 0.5.1
 
 * Fixes a performance regression in array serialization. (#61 by @caelunshun)
