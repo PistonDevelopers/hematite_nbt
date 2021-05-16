@@ -359,8 +359,23 @@ impl<'a, 'b: 'a, 'de, R: Read<'de>> de::Deserializer<'de> for &'b mut InnerDecod
         visitor.visit_newtype_struct(self)
     }
 
+    /// Deserialize an owned string. This disables the scratch space optimization to bypass copying into the scratch space
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.tag {
+            0x08 => {
+                let reader = &mut self.outer.reader;
+                let value = reader.read_bare_string(None)?;
+                visitor.visit_string(value.into_owned())
+            }
+            _ => Err(Error::TagMismatch(self.tag, 0x08)),
+        }
+    }
+
     forward_to_deserialize_any! {
-        u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string bytes byte_buf seq
+        u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str bytes byte_buf seq
         map tuple_struct struct tuple enum identifier ignored_any
     }
 }
