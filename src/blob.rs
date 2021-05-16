@@ -1,4 +1,4 @@
-use crate::Map;
+use crate::{raw::Read, Map};
 use std::fmt;
 use std::io;
 use std::ops::Index;
@@ -62,11 +62,11 @@ impl Blob {
     }
 
     /// Extracts an `Blob` object from an `io::Read` source.
-    pub fn from_reader<R>(src: &mut R) -> Result<Blob>
+    pub fn from_reader<'de, R>(src: &mut R) -> Result<Blob>
     where
-        R: io::Read,
+        R: Read<'de>,
     {
-        let (tag, title) = raw::emit_next_header(src)?;
+        let (tag, title) = src.emit_next_header(None)?;
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
         // have a top-level Compound.
@@ -76,7 +76,7 @@ impl Blob {
         let content = Value::from_reader(tag, src)?;
         match content {
             Value::Compound(map) => Ok(Blob {
-                title,
+                title: title.into_owned(),
                 content: map,
             }),
             _ => Err(Error::NoRootCompound),

@@ -5,9 +5,23 @@ use std::io;
 use flate2::read;
 use serde::de;
 
-use raw;
-
 use error::{Error, Result};
+
+use crate::raw::{Read, Reference, SliceRead};
+
+/// Decode an object from Named Binary Tag (NBT) format.
+///
+/// Note that only maps and structs can be decoded, because the NBT format does
+/// not support bare types. Other types will return `Error::NoRootCompound`.
+pub fn from_slice<'a, T>(src: &'a [u8]) -> Result<(&'a [u8], T)>
+where
+    T: de::Deserialize<'a>,
+{
+    let src = SliceRead::new(src);
+    let mut decoder = Decoder::new(src);
+    let res = de::Deserialize::deserialize(&mut decoder)?;
+    Ok((decoder.reader.get_inner(), res))
+}
 
 /// Decode an object from Named Binary Tag (NBT) format.
 ///
@@ -54,19 +68,20 @@ where
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub struct Decoder<R> {
     reader: R,
+    scratch: Vec<u8>,
 }
 
-impl<R> Decoder<R>
-where
-    R: io::Read,
-{
+impl<R> Decoder<R> {
     /// Create an NBT Decoder from a given `io::Read` source.
     pub fn new(src: R) -> Self {
-        Decoder { reader: src }
+        Decoder {
+            reader: src,
+            scratch: Vec::new(),
+        }
     }
 }
 
-impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
+impl<'de: 'a, 'a, R: Read<'de>> de::Deserializer<'de> for &'a mut Decoder<R> {
     type Error = Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
@@ -110,7 +125,7 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
         V: de::Visitor<'de>,
     {
         // Ignore the header (if there is one).
-        let (tag, _) = raw::emit_next_header(&mut self.reader)?;
+        let (tag, _) = self.reader.emit_next_header(Some(&mut self.scratch))?;
 
         match tag {
             0x0a => visitor.visit_map(MapDecoder::new(self)),
@@ -125,28 +140,25 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
 }
 
 /// Decoder for map-like types.
-struct MapDecoder<'a, R: io::Read + 'a> {
+struct MapDecoder<'a, R: 'a> {
     outer: &'a mut Decoder<R>,
     tag: Option<u8>,
 }
 
-impl<'a, R> MapDecoder<'a, R>
-where
-    R: io::Read,
-{
+impl<'a, R: 'a> MapDecoder<'a, R> {
     fn new(outer: &'a mut Decoder<R>) -> Self {
         MapDecoder { outer, tag: None }
     }
 }
 
-impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
+impl<'de: 'a, 'a, R: Read<'de> + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: de::DeserializeSeed<'de>,
     {
-        let tag = raw::read_bare_byte(&mut self.outer.reader)?;
+        let tag = self.outer.reader.read_bare_byte()?;
 
         // NBT indicates the end of a compound type with a 0x00 tag.
         if tag == 0x00 {
@@ -181,20 +193,20 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
 }
 
 /// Decoder for list-like types.
-struct SeqDecoder<'a, R: io::Read + 'a> {
+struct SeqDecoder<'a, R: 'a> {
     outer: &'a mut Decoder<R>,
     tag: u8,
     length: i32,
     current: i32,
 }
 
-impl<'a, R> SeqDecoder<'a, R>
+impl<'a, 'de, R> SeqDecoder<'a, R>
 where
-    R: io::Read,
+    R: Read<'de>,
 {
     fn list(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let tag = raw::read_bare_byte(&mut outer.reader)?;
-        let length = raw::read_bare_int(&mut outer.reader)?;
+        let tag = outer.reader.read_bare_byte()?;
+        let length = outer.reader.read_bare_int()?;
         Ok(SeqDecoder {
             outer,
             tag: tag as u8,
@@ -204,7 +216,7 @@ where
     }
 
     fn byte_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = raw::read_bare_int(&mut outer.reader)?;
+        let length = outer.reader.read_bare_int()?;
         Ok(SeqDecoder {
             outer,
             tag: 0x01,
@@ -214,7 +226,7 @@ where
     }
 
     fn int_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = raw::read_bare_int(&mut outer.reader)?;
+        let length = outer.reader.read_bare_int()?;
         Ok(SeqDecoder {
             outer,
             tag: 0x03,
@@ -224,7 +236,7 @@ where
     }
 
     fn long_array(outer: &'a mut Decoder<R>) -> Result<Self> {
-        let length = raw::read_bare_int(&mut outer.reader)?;
+        let length = outer.reader.read_bare_int()?;
         Ok(SeqDecoder {
             outer,
             tag: 0x04,
@@ -234,7 +246,7 @@ where
     }
 }
 
-impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
+impl<'de: 'a, 'a, R: Read<'de> + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
     type Error = Error;
 
     fn next_element_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -263,12 +275,12 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
 }
 
 /// Private inner decoder, for decoding raw (i.e. non-Compound) types.
-struct InnerDecoder<'a, R: io::Read + 'a> {
+struct InnerDecoder<'a, R: 'a> {
     outer: &'a mut Decoder<R>,
     tag: u8,
 }
 
-impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecoder<'a, R> {
+impl<'a, 'b: 'a, 'de, R: Read<'de>> de::Deserializer<'de> for &'b mut InnerDecoder<'a, R> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -278,14 +290,18 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
         let outer = &mut self.outer;
 
         match self.tag {
-            0x01 => visitor.visit_i8(raw::read_bare_byte(&mut outer.reader)?),
-            0x02 => visitor.visit_i16(raw::read_bare_short(&mut outer.reader)?),
-            0x03 => visitor.visit_i32(raw::read_bare_int(&mut outer.reader)?),
-            0x04 => visitor.visit_i64(raw::read_bare_long(&mut outer.reader)?),
-            0x05 => visitor.visit_f32(raw::read_bare_float(&mut outer.reader)?),
-            0x06 => visitor.visit_f64(raw::read_bare_double(&mut outer.reader)?),
+            0x01 => visitor.visit_i8(outer.reader.read_bare_byte()?),
+            0x02 => visitor.visit_i16(outer.reader.read_bare_short()?),
+            0x03 => visitor.visit_i32(outer.reader.read_bare_int()?),
+            0x04 => visitor.visit_i64(outer.reader.read_bare_long()?),
+            0x05 => visitor.visit_f32(outer.reader.read_bare_float()?),
+            0x06 => visitor.visit_f64(outer.reader.read_bare_double()?),
             0x07 => visitor.visit_seq(SeqDecoder::byte_array(outer)?),
-            0x08 => visitor.visit_string(raw::read_bare_string(&mut outer.reader)?),
+            0x08 => match outer.reader.read_bare_string(Some(&mut outer.scratch))? {
+                Reference::Borrowed(b) => visitor.visit_borrowed_str(b),
+                Reference::Copied(c) => visitor.visit_str(c),
+                Reference::Owned(o) => visitor.visit_string(o),
+            },
             0x09 => visitor.visit_seq(SeqDecoder::list(outer)?),
             0x0a => visitor.visit_map(MapDecoder::new(outer)),
             0x0b => visitor.visit_seq(SeqDecoder::int_array(outer)?),
@@ -302,7 +318,7 @@ impl<'a, 'b: 'a, 'de, R: io::Read> de::Deserializer<'de> for &'b mut InnerDecode
         match self.tag {
             0x01 => {
                 let reader = &mut self.outer.reader;
-                let value = raw::read_bare_byte(reader)?;
+                let value = reader.read_bare_byte()?;
                 match value {
                     0 => visitor.visit_bool(false),
                     1 => visitor.visit_bool(true),
