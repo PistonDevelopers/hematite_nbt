@@ -1,4 +1,7 @@
-use crate::{raw::Read, Map};
+use crate::{
+    raw::{Read, SliceRead},
+    Map,
+};
 use std::fmt;
 use std::io;
 
@@ -115,8 +118,8 @@ impl Value {
     }
 
     /// Reads the payload of an `Value` with a given type ID from an
-    /// `io::Read` source.
-    pub fn from_reader<'de, R>(id: u8, src: &mut R) -> Result<Value>
+    /// `Read` source.
+    pub(crate) fn from_trait<'de, R>(id: u8, src: &mut R) -> Result<Value>
     where
         R: Read<'de>,
     {
@@ -135,7 +138,7 @@ impl Value {
                 let len = src.read_length()? as usize;
                 let mut buf = Vec::with_capacity(len);
                 for _ in 0..len {
-                    buf.push(Value::from_reader(id, src)?);
+                    buf.push(Value::from_trait(id, src)?);
                 }
                 Ok(Value::List(buf))
             }
@@ -147,7 +150,7 @@ impl Value {
                     if id == 0x00 {
                         break;
                     }
-                    let tag = Value::from_reader(id, src)?;
+                    let tag = Value::from_trait(id, src)?;
                     buf.insert(name.into_owned(), tag);
                 }
                 Ok(Value::Compound(buf))
@@ -156,6 +159,23 @@ impl Value {
             0x0c => Ok(Value::LongArray(src.read_bare_long_array()?)),
             e => Err(Error::InvalidTypeId(e)),
         }
+    }
+
+    /// Reads the payload of an `Value` with a given type ID from an
+    /// `io::Read` source.
+    pub fn from_slice<'de, R>(id: u8, src: &'de [u8]) -> Result<(&'de [u8], Value)> {
+        let mut slice_read = SliceRead::new(src);
+        let res = Self::from_trait(id, &mut slice_read)?;
+        Ok((slice_read.get_inner(), res))
+    }
+
+    /// Reads the payload of an `Value` with a given type ID from an
+    /// `io::Read` source.
+    pub fn from_reader<R>(id: u8, src: &mut R) -> Result<Value>
+    where
+        R: io::Read,
+    {
+        Self::from_trait(id, src)
     }
 
     pub fn print(&self, f: &mut fmt::Formatter, offset: usize) -> fmt::Result {

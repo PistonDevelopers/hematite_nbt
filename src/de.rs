@@ -72,7 +72,7 @@ pub struct Decoder<R> {
 }
 
 impl<R> Decoder<R> {
-    /// Create an NBT Decoder from a given `io::Read` source.
+    /// Create an NBT Decoder from a given source.
     pub fn new(src: R) -> Self {
         Decoder {
             reader: src,
