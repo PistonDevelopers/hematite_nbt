@@ -7,9 +7,9 @@ use flate2::Compression;
 use serde;
 use serde::ser;
 
-use raw;
+use crate::raw;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 use serde::ser::Error as SerError;
 
 /// Encode `value` in Named Binary Tag format to the given `io::Write`
@@ -52,6 +52,7 @@ where
 /// `serde::Serialize` trait into NBT format. Note that not all types are
 /// representable in NBT format (notably unsigned integers), so this encoder may
 /// return errors.
+#[derive(Debug)]
 pub struct Encoder<'a, W> {
     writer: W,
     header: Option<&'a str>,
@@ -78,7 +79,7 @@ where
 }
 
 /// "Inner" version of the NBT encoder, capable of serializing bare types.
-struct InnerEncoder<'a, 'b: 'a, W: 'a> {
+struct InnerEncoder<'a, 'b, W> {
     outer: &'a mut Encoder<'b, W>,
 }
 
@@ -92,7 +93,8 @@ where
 }
 
 #[doc(hidden)]
-pub struct Compound<'a, 'b: 'a, W: 'a> {
+#[derive(Debug)]
+pub struct Compound<'a, 'b, W> {
     outer: &'a mut Encoder<'b, W>,
     length: i32,
     sigil: bool,
@@ -386,11 +388,9 @@ where
 
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        if let Some(l) = len {
+        len.map_or(Err(Error::UnrepresentableType("unsized list")), move |l| {
             Compound::for_seq(self.outer, l as i32, false)
-        } else {
-            Err(Error::UnrepresentableType("unsized list"))
-        }
+        })
     }
 
     #[inline]
@@ -418,7 +418,7 @@ where
 }
 
 /// A serializer for valid map keys, i.e. strings.
-struct MapKeyEncoder<'a, 'b: 'a, W: 'a> {
+struct MapKeyEncoder<'a, 'b, W> {
     outer: &'a mut Encoder<'b, W>,
 }
 
@@ -468,7 +468,7 @@ where
 }
 
 /// A serializer for valid map keys.
-struct TagEncoder<'a, 'b: 'a, W: 'a, K> {
+struct TagEncoder<'a, 'b, W, K> {
     outer: &'a mut Encoder<'b, W>,
     key: Option<K>,
 }

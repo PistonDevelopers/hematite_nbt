@@ -1,16 +1,29 @@
 //! MC Named Binary Tag type.
 
-extern crate byteorder;
-extern crate cesu8;
-extern crate flate2;
+#![deny(
+    rust_2018_compatibility,
+    rust_2018_idioms,
+    unused,
+    nonstandard_style,
+    future_incompatible,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    clippy::all
+)]
+#![warn(clippy::pedantic, missing_docs)]
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::similar_names,
+    clippy::pub_enum_variant_names
+)]
 
 /* Re-export the core API from submodules. */
 pub use blob::Blob;
 pub use error::{Error, Result};
 pub use value::Value;
 
-#[cfg(feature = "preserve_order")]
-extern crate indexmap;
 #[cfg(feature = "preserve_order")]
 pub use indexmap::IndexMap as Map;
 #[cfg(not(feature = "preserve_order"))]

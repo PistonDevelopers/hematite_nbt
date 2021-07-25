@@ -1,21 +1,21 @@
+use crate::Map;
 use std::fs::File;
 use std::io;
-use Map;
 
 //use test::Bencher;
 
-use blob::Blob;
-use error::Error;
-use value::Value;
+use crate::blob::Blob;
+use crate::error::Error;
+use crate::value::Value;
 
 #[test]
 fn nbt_nonempty() {
     let mut nbt = Blob::new();
     nbt.insert("name", "Herobrine").unwrap();
-    nbt.insert("health", 100i8).unwrap();
-    nbt.insert("food", 20.0f32).unwrap();
-    nbt.insert("emeralds", 12345i16).unwrap();
-    nbt.insert("timestamp", 1424778774i32).unwrap();
+    nbt.insert("health", 100_i8).unwrap();
+    nbt.insert("food", 20.0_f32).unwrap();
+    nbt.insert("emeralds", 12345_i16).unwrap();
+    nbt.insert("timestamp", 1_424_778_774_i32).unwrap();
 
     #[rustfmt::skip]
     let bytes = vec![
@@ -233,9 +233,7 @@ fn nbt_invalid_id() {
 #[test]
 fn nbt_invalid_list() {
     let mut nbt = Blob::new();
-    let mut badlist = Vec::new();
-    badlist.push(Value::Byte(1));
-    badlist.push(Value::Short(1));
+    let badlist = vec![Value::Byte(1), Value::Short(1)];
     // Will fail to insert, because the List is heterogeneous.
     assert_eq!(
         nbt.insert("list", Value::List(badlist)),
@@ -260,7 +258,7 @@ fn nbt_compression() {
     nbt.insert("health", Value::Byte(100)).unwrap();
     nbt.insert("food", Value::Float(20.0)).unwrap();
     nbt.insert("emeralds", Value::Short(12345)).unwrap();
-    nbt.insert("timestamp", Value::Int(1424778774)).unwrap();
+    nbt.insert("timestamp", Value::Int(1_424_778_774)).unwrap();
 
     // Test zlib encoding/decoding.
     let mut zlib_dst = Vec::new();
@@ -289,18 +287,18 @@ fn nbt_bigtest() {
 fn nbt_arrays() {
     let mut arrays_file = File::open("tests/arrays.nbt").unwrap();
     let arrays = Blob::from_reader(&mut arrays_file).unwrap();
-    match &arrays["ia"] {
-        &Value::IntArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
+    match arrays["ia"] {
+        Value::IntArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
         _ => panic!("ia was not TAG_IntArray"),
     }
 
-    match &arrays["ba"] {
-        &Value::ByteArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
+    match arrays["ba"] {
+        Value::ByteArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
         _ => panic!("ba was not TAG_ByteArray"),
     }
 
-    match &arrays["la"] {
-        &Value::LongArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
+    match arrays["la"] {
+        Value::LongArray(ref arr) => assert_eq!(&[-2, -1, 0, 1, 2], &**arr),
         _ => panic!("la was not TAG_LongArray"),
     }
 }
@@ -308,15 +306,15 @@ fn nbt_arrays() {
 #[test]
 #[cfg(feature = "serde")]
 fn serde_blob() {
-    use de::from_reader;
-    use ser::to_writer;
+    use crate::de::from_reader;
+    use crate::ser::to_writer;
 
     let mut nbt = Blob::new();
     nbt.insert("name", "Herobrine").unwrap();
-    nbt.insert("health", 100i8).unwrap();
-    nbt.insert("food", 20.0f32).unwrap();
-    nbt.insert("emeralds", 12345i16).unwrap();
-    nbt.insert("timestamp", 1424778774i32).unwrap();
+    nbt.insert("health", 100_i8).unwrap();
+    nbt.insert("food", 20.0_f32).unwrap();
+    nbt.insert("emeralds", 12345_i16).unwrap();
+    nbt.insert("timestamp", 1_424_778_774_i32).unwrap();
 
     #[rustfmt::skip]
     let bytes = vec![
@@ -396,11 +394,11 @@ fn nbt_sizes() {
     // Arbitarary values, covering most data types
     let mut subtree = Map::<String, Value>::new();
     subtree.insert("name".into(), "Herobrine".into());
-    subtree.insert("health".into(), 100i8.into());
-    subtree.insert("enormous".into(), 100i64.into());
-    subtree.insert("food".into(), 20.0f32.into());
-    subtree.insert("emeralds".into(), 12345i16.into());
-    subtree.insert("timestamp".into(), 1424778774i32.into());
+    subtree.insert("health".into(), 100_i8.into());
+    subtree.insert("enormous".into(), 100_i64.into());
+    subtree.insert("food".into(), 20.0_f32.into());
+    subtree.insert("emeralds".into(), 12345_i16.into());
+    subtree.insert("timestamp".into(), 1_424_778_774_i32.into());
     subtree.insert(
         "list".into(),
         Value::List(vec![1, 2, 3, 4].into_iter().map(Value::Int).collect()),
