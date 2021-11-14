@@ -23,7 +23,9 @@ pub enum Value {
     String(String),
     List(Vec<Value>),
     Compound(Map<String, Value>),
+    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::i32_array"))]
     IntArray(Vec<i32>),
+    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::i64_array"))]
     LongArray(Vec<i64>),
 }
 
