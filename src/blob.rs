@@ -8,9 +8,9 @@ use flate2::read::{GzDecoder, ZlibDecoder};
 use flate2::write::{GzEncoder, ZlibEncoder};
 use flate2::Compression;
 
-use error::{Error, Result};
-use raw;
-use value::Value;
+use crate::error::{Error, Result};
+use crate::raw;
+use crate::value::Value;
 
 /// A generic, complete object in Named Binary Tag format.
 ///
@@ -43,6 +43,7 @@ pub struct Blob {
 
 impl Blob {
     /// Create a new NBT file format representation with an empty name.
+    #[must_use]
     pub fn new() -> Blob {
         Blob {
             title: "".to_string(),
@@ -111,7 +112,7 @@ impl Blob {
     {
         dst.write_u8(0x0a)?;
         raw::write_bare_string(&mut dst, &self.title)?;
-        for (name, ref nbt) in self.content.iter() {
+        for (name, nbt) in self.content.iter() {
             dst.write_u8(nbt.id())?;
             raw::write_bare_string(&mut dst, name)?;
             nbt.to_writer(&mut dst)?;
@@ -141,6 +142,7 @@ impl Blob {
     /// method is just a thin wrapper around the underlying map method of
     /// the same name.
     ///
+    /// # Errors
     /// This method will also return an error if a `Value::List` with
     /// heterogeneous elements is passed in, because this is illegal in the NBT
     /// file format.
@@ -175,6 +177,7 @@ impl Blob {
     }
 
     /// The number of bytes this blob will serialize to, before compression
+    #[must_use]
     pub fn len_bytes(&self) -> usize {
         /* compound tag + name length + TAG_End = 4 */
         4 + self.title.len()
@@ -195,7 +198,7 @@ impl<'a> Index<&'a str> for Blob {
 }
 
 impl fmt::Display for Blob {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "TAG_Compound(\"{}\"): {} entry(ies)\n{{\n",

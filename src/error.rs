@@ -4,9 +4,6 @@ use std::io;
 use std::io::ErrorKind::InvalidInput;
 use std::result::Result as StdResult;
 
-#[cfg(feature = "serde")]
-use serde;
-
 /// A convenient alias type for results when reading/writing the Named Binary
 /// Tag format.
 pub type Result<T> = StdResult<T, Error>;
@@ -54,7 +51,7 @@ pub enum Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             &Error::IoError(ref e) => e.fmt(f),
             #[cfg(feature = "serde")]
@@ -73,7 +70,7 @@ impl fmt::Display for Error {
             &Error::UnexpectedField(ref name) => {
                 write!(f, "encountered an unexpected field '{}'", name)
             }
-            &Error::UnrepresentableType(ref name) => write!(
+            &Error::UnrepresentableType(name) => write!(
                 f,
                 "encountered type '{}', which has no meaningful NBT representation",
                 name
@@ -105,14 +102,14 @@ impl PartialEq<Error> for Error {
             #[cfg(feature = "serde")]
             (&Error::Serde(_), &Error::Serde(_)) => true,
             (&InvalidTypeId(a), &InvalidTypeId(b)) => a == b,
-            (&HeterogeneousList, &HeterogeneousList) => true,
-            (&NoRootCompound, &NoRootCompound) => true,
-            (&InvalidUtf8, &InvalidUtf8) => true,
-            (&IncompleteNbtValue, &IncompleteNbtValue) => true,
+            (&HeterogeneousList, &HeterogeneousList)
+            | (&NoRootCompound, &NoRootCompound)
+            | (&InvalidUtf8, &InvalidUtf8)
+            | (&IncompleteNbtValue, &IncompleteNbtValue) => true,
             (&TagMismatch(a, b), &TagMismatch(c, d)) => a == c && b == d,
             (&UnexpectedField(ref a), &UnexpectedField(ref b)) => a == b,
             (&NonBooleanByte(a), &NonBooleanByte(b)) => a == b,
-            (&UnrepresentableType(ref a), &UnrepresentableType(ref b)) => a == b,
+            (&UnrepresentableType(a), &UnrepresentableType(b)) => a == b,
             _ => false,
         }
     }

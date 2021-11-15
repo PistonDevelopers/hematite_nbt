@@ -5,7 +5,7 @@ use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use cesu8::{from_java_cesu8, to_java_cesu8};
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 /// A convenience function for closing NBT format objects.
 ///
@@ -122,12 +122,11 @@ where
 {
     let tag = src.read_u8()?;
 
-    match tag {
-        0x00 => Ok((tag, "".to_string())),
-        _ => {
-            let name = read_bare_string(src)?;
-            Ok((tag, name))
-        }
+    if tag == 0x00 {
+        Ok((tag, "".to_string()))
+    } else {
+        let name = read_bare_string(src)?;
+        Ok((tag, name))
     }
 }
 
@@ -234,7 +233,7 @@ where
     }
 
     let mut bytes = vec![0; len];
-    let mut n_read = 0usize;
+    let mut n_read = 0_usize;
     while n_read < bytes.len() {
         match src.read(&mut bytes[n_read..])? {
             0 => return Err(Error::IncompleteNbtValue),

@@ -4,8 +4,8 @@ use std::io;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use error::{Error, Result};
-use raw;
+use crate::error::{Error, Result};
+use crate::raw;
 
 /// Values which can be represented in the Named Binary Tag format.
 #[derive(Clone, Debug, PartialEq)]
@@ -32,6 +32,7 @@ pub enum Value {
 impl Value {
     /// The type ID of this `Value`, which is a single byte in the range
     /// `0x01` to `0x0b`.
+    #[must_use]
     pub fn id(&self) -> u8 {
         match *self {
             Value::Byte(_) => 0x01,
@@ -50,6 +51,7 @@ impl Value {
     }
 
     /// A string representation of this tag.
+    #[must_use]
     pub fn tag_name(&self) -> &str {
         match *self {
             Value::Byte(_) => "TAG_Byte",
@@ -80,7 +82,7 @@ impl Value {
             Value::Float(val) => raw::write_bare_float(dst, val),
             Value::Double(val) => raw::write_bare_double(dst, val),
             Value::ByteArray(ref vals) => raw::write_bare_byte_array(dst, &vals[..]),
-            Value::String(ref val) => raw::write_bare_string(dst, &val),
+            Value::String(ref val) => raw::write_bare_string(dst, val),
             Value::List(ref vals) => {
                 // This is a bit of a trick: if the list is empty, don't bother
                 // checking its type.
@@ -103,7 +105,7 @@ impl Value {
                 Ok(())
             }
             Value::Compound(ref vals) => {
-                for (name, ref nbt) in vals {
+                for (name, nbt) in vals {
                     // Write the header for the tag.
                     dst.write_u8(nbt.id())?;
                     raw::write_bare_string(dst, name)?;
@@ -160,7 +162,7 @@ impl Value {
         }
     }
 
-    pub fn print(&self, f: &mut fmt::Formatter, offset: usize) -> fmt::Result {
+    pub fn print(&self, f: &mut fmt::Formatter<'_>, offset: usize) -> fmt::Result {
         match *self {
             Value::Byte(v) => write!(f, "{}", v),
             Value::Short(v) => write!(f, "{}", v),
@@ -224,11 +226,12 @@ impl Value {
     }
 
     /// The number of bytes this value serializes to, before compression
+    #[must_use]
     pub fn len_bytes(&self) -> usize {
         1 /* type ID */ + self.len_payload()
     }
 
-    /// Serialized size of an entry within a TAG_COMPOUND
+    /// Serialized size of an entry within a `TAG_COMPOUND`
     /// Also used by Blob, so crate visible
     pub(crate) fn size_of_compound_entry((key, value): (&String, &Value)) -> usize {
         let key_len = 2 + key.len();
@@ -242,16 +245,14 @@ impl Value {
         match self {
             Value::Byte(_) => 1,
             Value::Short(_) => 2,
-            Value::Int(_) => 4,
-            Value::Long(_) => 8,
-            Value::Float(_) => 4,
-            Value::Double(_) => 8,
+            Value::Int(_) | Value::Float(_) => 4,
+            Value::Long(_) | Value::Double(_) => 8,
             Value::String(s) => 2 /* string size */ + s.len(),
             Value::List(v) => {
                 1 /* item tag */ + 4 /* arr size */ + v.iter().map(Self::len_payload).sum::<usize>()
             }
             Value::Compound(hm) => {
-                hm.iter().map(Self::size_of_compound_entry).sum::<usize>() + 1usize
+                hm.iter().map(Self::size_of_compound_entry).sum::<usize>() + 1_usize
             }
             Value::ByteArray(ba) => 4 /* arr size */ + size_of::<i8>()*ba.len(),
             Value::IntArray(ia) => 4 /* arr size */ + size_of::<i32>()*ia.len(),
@@ -261,7 +262,7 @@ impl Value {
 }
 
 impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.print(f, 0)
     }
 }

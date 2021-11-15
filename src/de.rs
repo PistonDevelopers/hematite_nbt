@@ -5,12 +5,13 @@ use std::io;
 use flate2::read;
 use serde::de;
 
-use raw;
+use crate::raw;
 
-use error::{Error, Result};
+use crate::error::{Error, Result};
 
 /// Decode an object from Named Binary Tag (NBT) format.
 ///
+/// # Errors
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_reader<R, T>(src: R) -> Result<T>
@@ -24,6 +25,7 @@ where
 
 /// Decode an object from Named Binary Tag (NBT) format.
 ///
+/// # Errors
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_gzip_reader<R, T>(src: R) -> Result<T>
@@ -37,6 +39,7 @@ where
 
 /// Decode an object from Named Binary Tag (NBT) format.
 ///
+/// # Errors
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
 pub fn from_zlib_reader<R, T>(src: R) -> Result<T>
@@ -52,6 +55,7 @@ where
 ///
 /// Note that only maps and structs can be decoded, because the NBT format does
 /// not support bare types. Other types will return `Error::NoRootCompound`.
+#[derive(Debug)]
 pub struct Decoder<R> {
     reader: R,
 }
@@ -125,7 +129,7 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
 }
 
 /// Decoder for map-like types.
-struct MapDecoder<'a, R: io::Read + 'a> {
+struct MapDecoder<'a, R: io::Read> {
     outer: &'a mut Decoder<R>,
     tag: Option<u8>,
 }
@@ -176,12 +180,12 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
             },
             None => unimplemented!(),
         };
-        Ok(seed.deserialize(&mut de)?)
+        seed.deserialize(&mut de)
     }
 }
 
 /// Decoder for list-like types.
-struct SeqDecoder<'a, R: io::Read + 'a> {
+struct SeqDecoder<'a, R: io::Read> {
     outer: &'a mut Decoder<R>,
     tag: u8,
     length: i32,
@@ -263,7 +267,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::SeqAccess<'de> for SeqDecoder<'a, R> {
 }
 
 /// Private inner decoder, for decoding raw (i.e. non-Compound) types.
-struct InnerDecoder<'a, R: io::Read + 'a> {
+struct InnerDecoder<'a, R: io::Read> {
     outer: &'a mut Decoder<R>,
     tag: u8,
 }

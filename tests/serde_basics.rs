@@ -178,7 +178,7 @@ struct NestedArrayNbt {
     data: Vec<Vec<i32>>,
 }
 
-fn nested_i32_array<S>(outer_arr: &Vec<Vec<i32>>, serializer: S) -> Result<S::Ok, S::Error>
+fn nested_i32_array<S>(outer_arr: &[Vec<i32>], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -335,7 +335,7 @@ struct CustomSerializerArrayNbt {
 }
 
 // We want to serialize an i16 vector as a ByteArray by shifting every element right by 8 bits
-fn shift_right_serializer<S>(original_array: &Vec<i16>, serializer: S) -> Result<S::Ok, S::Error>
+fn shift_right_serializer<S>(original_array: &[i16], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
