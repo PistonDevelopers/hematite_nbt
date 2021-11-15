@@ -22,6 +22,9 @@ where
 
     let read: T = nbt::de::from_reader(bytes).expect("NBT deserialization.");
     assert_eq!(read, nbt);
+
+    let read: T = nbt::de::from_slice(bytes).expect("NBT deserialization.").1;
+    assert_eq!(read, nbt);
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

@@ -1,4 +1,7 @@
-use crate::Map;
+use crate::{
+    raw::{Read, SliceRead},
+    Map,
+};
 use std::fmt;
 use std::io;
 use std::ops::Index;
@@ -16,7 +19,7 @@ use value::Value;
 ///
 /// This is essentially a map of names to `Value`s, with an optional top-level
 /// name of its own. It can be created in a similar way to a `HashMap`, or read
-/// from an `io::Read` source, and its binary representation can be written to
+/// from an `io::Read` or `&[u8]` source, and its binary representation can be written to
 /// an `io::Write` destination.
 ///
 /// These read and write methods support both uncompressed and compressed
@@ -61,26 +64,44 @@ impl Blob {
         }
     }
 
-    /// Extracts an `Blob` object from an `io::Read` source.
-    pub fn from_reader<R>(src: &mut R) -> Result<Blob>
+    /// Extracts an `Blob` object from an `Read` source.
+    fn from_trait<'de, R>(src: &mut R) -> Result<Blob>
     where
-        R: io::Read,
+        R: Read<'de>,
     {
-        let (tag, title) = raw::emit_next_header(src)?;
+        let (tag, title) = src.emit_next_header(None)?;
         // Although it would be possible to read NBT format files composed of
         // arbitrary objects using the current API, by convention all files
         // have a top-level Compound.
         if tag != 0x0a {
             return Err(Error::NoRootCompound);
         }
-        let content = Value::from_reader(tag, src)?;
+        let content = Value::from_trait(tag, src)?;
         match content {
             Value::Compound(map) => Ok(Blob {
-                title,
+                title: title.into_owned(),
                 content: map,
             }),
             _ => Err(Error::NoRootCompound),
         }
+    }
+
+    /// Extracts an `Blob` object from an `&[u8]` source.
+    pub fn from_slice<'de, R>(src: &'de [u8]) -> Result<(&'de [u8], Blob)>
+    where
+        R: Read<'de>,
+    {
+        let mut slice_read = SliceRead::new(src);
+        let res = Self::from_trait(&mut slice_read)?;
+        Ok((slice_read.get_inner(), res))
+    }
+
+    /// Extracts an `Blob` object from an `io::Read` source.
+    pub fn from_reader<R>(src: &mut R) -> Result<Blob>
+    where
+        R: io::Read,
+    {
+        Self::from_trait(src)
     }
 
     /// Extracts an `Blob` object from an `io::Read` source that is

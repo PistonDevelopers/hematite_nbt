@@ -1,8 +1,11 @@
-use crate::Map;
+use crate::{
+    raw::{Read, SliceRead},
+    Map,
+};
 use std::fmt;
 use std::io;
 
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, WriteBytesExt};
 
 use error::{Error, Result};
 use raw;
@@ -117,27 +120,27 @@ impl Value {
     }
 
     /// Reads the payload of an `Value` with a given type ID from an
-    /// `io::Read` source.
-    pub fn from_reader<R>(id: u8, src: &mut R) -> Result<Value>
+    /// `Read` source.
+    pub(crate) fn from_trait<'de, R>(id: u8, src: &mut R) -> Result<Value>
     where
-        R: io::Read,
+        R: Read<'de>,
     {
         match id {
-            0x01 => Ok(Value::Byte(raw::read_bare_byte(src)?)),
-            0x02 => Ok(Value::Short(raw::read_bare_short(src)?)),
-            0x03 => Ok(Value::Int(raw::read_bare_int(src)?)),
-            0x04 => Ok(Value::Long(raw::read_bare_long(src)?)),
-            0x05 => Ok(Value::Float(raw::read_bare_float(src)?)),
-            0x06 => Ok(Value::Double(raw::read_bare_double(src)?)),
-            0x07 => Ok(Value::ByteArray(raw::read_bare_byte_array(src)?)),
-            0x08 => Ok(Value::String(raw::read_bare_string(src)?)),
+            0x01 => Ok(Value::Byte(src.read_bare_byte()?)),
+            0x02 => Ok(Value::Short(src.read_bare_short()?)),
+            0x03 => Ok(Value::Int(src.read_bare_int()?)),
+            0x04 => Ok(Value::Long(src.read_bare_long()?)),
+            0x05 => Ok(Value::Float(src.read_bare_float()?)),
+            0x06 => Ok(Value::Double(src.read_bare_double()?)),
+            0x07 => Ok(Value::ByteArray(src.read_bare_byte_array()?)),
+            0x08 => Ok(Value::String(src.read_bare_string(None)?.into_owned())),
             0x09 => {
                 // List
-                let id = src.read_u8()?;
-                let len = src.read_i32::<BigEndian>()? as usize;
+                let id = src.read_id()?;
+                let len = src.read_length()? as usize;
                 let mut buf = Vec::with_capacity(len);
                 for _ in 0..len {
-                    buf.push(Value::from_reader(id, src)?);
+                    buf.push(Value::from_trait(id, src)?);
                 }
                 Ok(Value::List(buf))
             }
@@ -145,19 +148,36 @@ impl Value {
                 // Compound
                 let mut buf = Map::new();
                 loop {
-                    let (id, name) = raw::emit_next_header(src)?;
+                    let (id, name) = src.emit_next_header(None)?;
                     if id == 0x00 {
                         break;
                     }
-                    let tag = Value::from_reader(id, src)?;
-                    buf.insert(name, tag);
+                    let tag = Value::from_trait(id, src)?;
+                    buf.insert(name.into_owned(), tag);
                 }
                 Ok(Value::Compound(buf))
             }
-            0x0b => Ok(Value::IntArray(raw::read_bare_int_array(src)?)),
-            0x0c => Ok(Value::LongArray(raw::read_bare_long_array(src)?)),
+            0x0b => Ok(Value::IntArray(src.read_bare_int_array()?)),
+            0x0c => Ok(Value::LongArray(src.read_bare_long_array()?)),
             e => Err(Error::InvalidTypeId(e)),
         }
+    }
+
+    /// Reads the payload of an `Value` with a given type ID from an
+    /// `io::Read` source.
+    pub fn from_slice<'de, R>(id: u8, src: &'de [u8]) -> Result<(&'de [u8], Value)> {
+        let mut slice_read = SliceRead::new(src);
+        let res = Self::from_trait(id, &mut slice_read)?;
+        Ok((slice_read.get_inner(), res))
+    }
+
+    /// Reads the payload of an `Value` with a given type ID from an
+    /// `io::Read` source.
+    pub fn from_reader<R>(id: u8, src: &mut R) -> Result<Value>
+    where
+        R: io::Read,
+    {
+        Self::from_trait(id, src)
     }
 
     pub fn print(&self, f: &mut fmt::Formatter, offset: usize) -> fmt::Result {

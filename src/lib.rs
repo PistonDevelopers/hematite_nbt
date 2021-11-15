@@ -18,7 +18,7 @@ pub use std::collections::HashMap as Map;
 
 #[cfg(feature = "serde")]
 #[doc(inline)]
-pub use de::{from_gzip_reader, from_reader, from_zlib_reader};
+pub use de::{from_gzip_reader, from_reader, from_slice, from_zlib_reader};
 #[cfg(feature = "serde")]
 #[doc(inline)]
 pub use ser::{i32_array, i64_array, i8_array};
