@@ -567,3 +567,34 @@ fn roundtrip_hashmap() {
 
     assert_roundtrip_eq(nbt, &bytes, None);
 }
+
+#[test]
+fn ser_blob_array() {
+    let mut blob = nbt::Blob::new();
+    blob.insert("larr", nbt::Value::LongArray(vec![456, 123])).unwrap();
+    blob.insert("iarr", nbt::Value::IntArray(vec![123, 456])).unwrap();
+
+    #[rustfmt::skip]
+    let bytes = vec![
+        0x0a,
+            0x00, 0x00,
+            0x0c,
+                0x00, 0x04,
+                0x6c, 0x61, 0x72, 0x72,
+                0x00, 0x00, 0x00, 0x02,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0xc8,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7b,
+            0x0b,
+                0x00, 0x04,
+                0x69, 0x61, 0x72, 0x72,
+                0x00, 0x00, 0x00, 0x02,
+                0x00, 0x00, 0x00, 0x7b,
+                0x00, 0x00, 0x01, 0xc8,
+        0x00
+    ];
+
+    let mut dst = Vec::with_capacity(bytes.len());
+
+    nbt::ser::to_writer(&mut dst, &blob, None).expect("NBT serialization.");
+    assert_eq!(bytes, &dst[..]);
+}
