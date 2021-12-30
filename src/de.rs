@@ -69,13 +69,11 @@ where
 impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        // The decoder cannot deserialize types by default. It can only handle
-        // maps and structs.
-        Err(Error::NoRootCompound)
+        self.deserialize_map(visitor)
     }
 
     fn deserialize_struct<V>(
