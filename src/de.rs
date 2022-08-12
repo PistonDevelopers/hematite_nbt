@@ -152,6 +152,7 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
         K: de::DeserializeSeed<'de>,
     {
         if matches!(self.tag, Some(0x00)) {
+            println!("Reading quick exit header.");
             // we exit early here - we know that the map contains nothing from a 0x00 headed object
             return Ok(None);
         }

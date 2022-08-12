@@ -271,6 +271,7 @@ where
     #[inline]
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         if matches!(len, Some(0)) {
+            println!("Writing quick exit header.");
             self.write_header(0, None)?;
             return Ok(Compound::from_outer(self));
         }
@@ -284,6 +285,7 @@ where
     #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         if len == 0 {
+            println!("Writing quick exit header.");
             self.write_header(0, None)?;
             return Ok(Compound::from_outer(self));
         }
