@@ -20,6 +20,7 @@ where
     W: ?Sized + io::Write,
     T: ?Sized + ser::Serialize,
 {
+    println!("To writer call, let's follow the logic here.");
     let mut encoder = Encoder::new(dst, header);
     value.serialize(&mut encoder)
 }
@@ -69,6 +70,7 @@ where
     /// Write the NBT tag and an optional header to the underlying writer.
     #[inline]
     fn write_header(&mut self, tag: i8, header: Option<&str>) -> Result<()> {
+        println!("Writing bare byte {}", tag);
         raw::write_bare_byte(&mut self.writer, tag)?;
         match header {
             None => raw::write_bare_short(&mut self.writer, 0).map_err(From::from),
@@ -283,7 +285,9 @@ where
 
     /// Serialize structs as `Tag_Compound` data.
     #[inline]
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        println!("Serializing struct {} with length {}", name, len);
+
         if len == 0 {
             println!("Writing quick exit header.");
             self.write_header(0, None)?;
@@ -291,6 +295,7 @@ where
         }
 
         let header = self.header; // Circumvent strange borrowing errors.
+        println!("Writing 0x0a header...");
         self.write_header(0x0a, header)?;
         Ok(Compound::from_outer(self))
     }
