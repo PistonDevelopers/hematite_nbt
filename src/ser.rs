@@ -269,7 +269,12 @@ where
 
     /// Serialize maps as `Tag_Compound` data.
     #[inline]
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+        if matches!(len, Some(0)) {
+            self.write_header(0, None)?;
+            return Ok(Compound::from_outer(self));
+        }
+
         let header = self.header; // Circumvent strange borrowing errors.
         self.write_header(0x0a, header)?;
         Ok(Compound::from_outer(self))
@@ -277,7 +282,12 @@ where
 
     /// Serialize structs as `Tag_Compound` data.
     #[inline]
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        if len == 0 {
+            self.write_header(0, None)?;
+            return Ok(Compound::from_outer(self));
+        }
+
         let header = self.header; // Circumvent strange borrowing errors.
         self.write_header(0x0a, header)?;
         Ok(Compound::from_outer(self))
