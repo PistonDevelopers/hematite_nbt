@@ -114,6 +114,7 @@ impl<'de: 'a, 'a, R: io::Read> de::Deserializer<'de> for &'a mut Decoder<R> {
 
         match tag {
             0x0a => visitor.visit_map(MapDecoder::new(self)),
+            0x00 => visitor.visit_map(MapDecoder::new_seeded(self, 0x00)),
             _ => Err(Error::NoRootCompound),
         }
     }
@@ -137,6 +138,10 @@ where
     fn new(outer: &'a mut Decoder<R>) -> Self {
         MapDecoder { outer, tag: None }
     }
+
+    fn new_seeded(outer: &'a mut Decoder<R>, seed: u8) -> Self {
+        MapDecoder { outer, tag: Some(seed) }
+    }
 }
 
 impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
@@ -146,6 +151,11 @@ impl<'de: 'a, 'a, R: io::Read + 'a> de::MapAccess<'de> for MapDecoder<'a, R> {
     where
         K: de::DeserializeSeed<'de>,
     {
+        if matches!(self.tag, Some(0x00)) {
+            // we exit early here - we know that the map contains nothing from a 0x00 headed object
+            return Ok(None);
+        }
+
         let tag = raw::read_bare_byte(&mut self.outer.reader)?;
 
         // NBT indicates the end of a compound type with a 0x00 tag.
