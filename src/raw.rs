@@ -107,10 +107,8 @@ pub fn write_bare_string<W>(dst: &mut W, value: &str) -> Result<()>
 where
     W: io::Write,
 {
-    println!("Writing string: {}", value);
     let encoded = to_java_cesu8(value);
     dst.write_u16::<BigEndian>(encoded.len() as u16)?;
-    println!("Writing {} as len", encoded.len());
     dst.write_all(&encoded).map_err(From::from)
 }
 
